@@ -216,11 +216,11 @@ export default function Index({ items: paginatedItems }: IndexPageProps) {
                         </div>
                     </CardContent>
                 </Card>
-                {paginatedItems.meta && paginatedItems.meta.last_page > 1 && (
-                    <div className="mt-6 flex justify-center">
-                        <Pagination links={paginatedItems.meta.links} />
-                    </div>
-                )}
+               {paginatedItems.last_page > 1 && (
+    <div className="mt-6 flex justify-center">
+        <Pagination links={paginatedItems.links} />
+    </div>
+)}
             </div>
 
             <AlertDialog open={!!itemToDelete} onOpenChange={() => setItemToDelete(null)}>

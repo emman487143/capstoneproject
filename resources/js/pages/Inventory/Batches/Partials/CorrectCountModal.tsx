@@ -81,6 +81,7 @@ export function CorrectCountModal({ batch, isOpen, onClose, onSuccess }: Correct
                                 min="0"
                                 required
                             />
+
                             <InputError message={errors.corrected_quantity} />
                         </div>
                     </div>

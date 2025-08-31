@@ -15,7 +15,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { LoaderCircle, Undo2 } from 'lucide-react';
+import { LoaderCircle, Undo2, ArrowLeft } from 'lucide-react';
 import Pagination from '@/components/pagination';
 import Heading from '@/components/heading';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -57,8 +57,19 @@ export default function Archived({ employees, filters }: ArchivedPageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
         <Head title="Archived Employees" />
+
         <div className="p-4 sm:p-6 lg:p-8 space-y-6">
             <Heading title="Archived Employees" description="Employees that have been archived can be restored here." />
+            <Button
+                                type="button"
+                                variant="outline"
+                                asChild
+                            >
+                                <Link href={route('employees.index')}>
+                                    <ArrowLeft className="h-4 w-4 mr-2" />
+                                    Back to Employees
+                                </Link>
+                            </Button>
             {employees.data.length > 0 ? (
                 <>
                     {/* Desktop Table View */}

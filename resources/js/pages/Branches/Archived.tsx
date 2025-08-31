@@ -14,7 +14,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { LoaderCircle, MapPin, Undo2, Users } from 'lucide-react';
+import { LoaderCircle, MapPin, Undo2, Users, ArrowLeft } from 'lucide-react';
 import Pagination from '@/components/pagination';
 import Heading from '@/components/heading';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -56,7 +56,16 @@ export default function Archived({ branches }: ArchivedPageProps) {
                     title="Archived Branches"
                     description="Branches that have been archived can be restored here."
                 />
-
+<Button
+                                type="button"
+                                variant="outline"
+                                asChild
+                            >
+                                <Link href={route('branches.index')}>
+                                    <ArrowLeft className="h-4 w-4 mr-2" />
+                                    Back to Branches
+                                </Link>
+                            </Button>
                 {branches.data.length > 0 ? (
                     <>
                         {/* Desktop Table View */}

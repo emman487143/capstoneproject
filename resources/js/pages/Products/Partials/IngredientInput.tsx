@@ -99,13 +99,19 @@ export default function IngredientInput({ ingredients, inventoryItems, setIngred
                         </Button>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                        {renderIngredientList()}
+                        {/* Set a max height and make scrollable on mobile */}
+                        <div className="max-h-[320px] overflow-y-auto pr-1">
+                            {renderIngredientList()}
+                        </div>
                     </CollapsibleContent>
                 </Collapsible>
 
                 {/* Desktop always visible content */}
                 <div className="hidden md:block">
-                    {renderIngredientList()}
+                    {/* Set a max height and make scrollable on desktop */}
+                    <div className="max-h-[400px] overflow-y-auto pr-2">
+                        {renderIngredientList()}
+                    </div>
                 </div>
 
                 <Button
@@ -138,85 +144,83 @@ export default function IngredientInput({ ingredients, inventoryItems, setIngred
         return (
             <div className="space-y-3">
                 {ingredients.length > 0 ? (
-                    <ScrollArea className="max-h-[350px] pr-2">
-                        <div className="space-y-3 pr-1">
-                            {ingredients.map((ingredient, index) => {
-                                const hasItem = !!ingredient.inventory_item_id;
-                                const itemError = errors[`ingredients.${index}.inventory_item_id`];
-                                const quantityError = errors[`ingredients.${index}.quantity_required`];
-                                const hasError = !!(itemError || quantityError);
+                    <div>
+                        {ingredients.map((ingredient, index) => {
+                            const hasItem = !!ingredient.inventory_item_id;
+                            const itemError = errors[`ingredients.${index}.inventory_item_id`];
+                            const quantityError = errors[`ingredients.${index}.quantity_required`];
+                            const hasError = !!(itemError || quantityError);
 
-                                return (
-                                    <div
-                                        key={index}
-                                        className={cn(
-                                            "flex flex-col sm:flex-row sm:items-end gap-3 p-3 rounded-md",
-                                            hasError ? "bg-destructive/5 border border-destructive/50" : "bg-muted/40 border"
-                                        )}
-                                    >
-                                        <div className="flex-1 space-y-1.5">
-                                            <Label htmlFor={`ingredient-item-${index}`} className="text-sm">
-                                                Ingredient
-                                            </Label>
-                                            <Select
-                                                value={ingredient.inventory_item_id}
-                                                onValueChange={(value) => handleIngredientChange(index, 'inventory_item_id', value)}
-                                            >
-                                                <SelectTrigger
-                                                    id={`ingredient-item-${index}`}
-                                                    className={itemError ? "border-destructive" : ""}
-                                                >
-                                                    <SelectValue placeholder="Select ingredient" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {inventoryItems.map((item) => (
-                                                        <SelectItem key={item.id} value={item.id.toString()}>
-                                                            {item.name} ({item.unit})
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            {itemError && <p className="text-xs text-destructive">{itemError}</p>}
-                                        </div>
-
-                                        <div className="w-full sm:w-40 space-y-1.5">
-                                            <Label htmlFor={`ingredient-quantity-${index}`} className="text-sm">
-                                                Quantity
-                                            </Label>
-                                            <div className="relative">
-                                                <Input
-                                                    id={`ingredient-quantity-${index}`}
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
-                                                    value={ingredient.quantity_required}
-                                                    onChange={(e) => handleIngredientChange(index, 'quantity_required', e.target.value)}
-                                                    placeholder="Amount"
-                                                    className={cn("pr-14", quantityError && "border-destructive")}
-                                                />
-                                                {hasItem && (
-                                                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-sm text-muted-foreground pointer-events-none">
-                                                        {getUnitForItem(ingredient.inventory_item_id)}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            {quantityError && <p className="text-xs text-destructive">{quantityError}</p>}
-                                        </div>
-
-                                        <Button
-                                            type="button"
-                                            variant="destructive"
-                                            size="icon"
-                                            onClick={() => handleRemoveIngredient(index)}
-                                            className="shrink-0 self-start sm:self-end"
+                            return (
+                                <div
+                                    key={index}
+                                    className={cn(
+                                        "flex flex-col sm:flex-row sm:items-end gap-3 p-3 rounded-md",
+                                        hasError ? "bg-destructive/5 border border-destructive/50" : "bg-muted/40 border"
+                                    )}
+                                >
+                                    <div className="flex-1 space-y-1.5">
+                                        <Label htmlFor={`ingredient-item-${index}`} className="text-sm">
+                                            Ingredient
+                                        </Label>
+                                        <Select
+                                            value={ingredient.inventory_item_id}
+                                            onValueChange={(value) => handleIngredientChange(index, 'inventory_item_id', value)}
                                         >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                            <SelectTrigger
+                                                id={`ingredient-item-${index}`}
+                                                className={itemError ? "border-destructive" : ""}
+                                            >
+                                                <SelectValue placeholder="Select ingredient" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {inventoryItems.map((item) => (
+                                                    <SelectItem key={item.id} value={item.id.toString()}>
+                                                        {item.name} ({item.unit})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {itemError && <p className="text-xs text-destructive">{itemError}</p>}
                                     </div>
-                                );
-                            })}
-                        </div>
-                    </ScrollArea>
+
+                                    <div className="w-full sm:w-40 space-y-1.5">
+                                        <Label htmlFor={`ingredient-quantity-${index}`} className="text-sm">
+                                            Quantity
+                                        </Label>
+                                        <div className="relative">
+                                            <Input
+                                                id={`ingredient-quantity-${index}`}
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={ingredient.quantity_required}
+                                                onChange={(e) => handleIngredientChange(index, 'quantity_required', e.target.value)}
+                                                placeholder="Amount"
+                                                className={cn("pr-14", quantityError && "border-destructive")}
+                                            />
+                                            {hasItem && (
+                                                <div className="absolute inset-y-0 right-0 flex items-center pr-3 text-sm text-muted-foreground pointer-events-none">
+                                                    {getUnitForItem(ingredient.inventory_item_id)}
+                                                </div>
+                                            )}
+                                        </div>
+                                        {quantityError && <p className="text-xs text-destructive">{quantityError}</p>}
+                                    </div>
+
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="icon"
+                                        onClick={() => handleRemoveIngredient(index)}
+                                        className="shrink-0 self-start sm:self-end"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            );
+                        })}
+                    </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center py-6 text-center">
                         <p className="text-muted-foreground mb-2">No ingredients added yet</p>

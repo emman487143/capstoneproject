@@ -168,7 +168,7 @@ export default function Create({ categories, branches }: CreateProps) {
 
                 <div className="mt-6 flex justify-end gap-4">
                     <Button type="button" variant="outline" asChild>
-                        <Link href={route('inventory.index')}>Cancel</Link>
+                        <Link href={route('inventory.items.index')}>Cancel</Link>
                     </Button>
                     <Button type="submit" disabled={processing}>
                         {processing && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}

@@ -319,9 +319,9 @@ export default function CreateSale({ productsByCategory, branches, currentBranch
 
     // Extract available addons from productsByCategory
     const availableAddons = useMemo(() => {
-        return productsByCategory.flatMap(category => category.products)
-            .filter(product => product.is_addon && !cart.find(item => item.product_id === product.id));
-    }, [productsByCategory, cart]);
+    return productsByCategory.flatMap(category => category.products)
+        .filter(product => product.is_addon);
+}, [productsByCategory]);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>

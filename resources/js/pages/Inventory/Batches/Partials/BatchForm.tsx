@@ -117,12 +117,51 @@ export function BatchForm({
                     </div>
                 ) : (
                     <div>
-                        <Label htmlFor="unit_cost">
+                         <Label htmlFor="total_cost" className="required">
+                Total Batch Cost
+            </Label>
+            <Input
+                id="total_cost"
+                type="number"
+                value={data.total_cost ?? ''}
+                onChange={(e) => {
+                    setData('total_cost', e.target.value);
+                    // Auto-calculate unit cost
+                    if (e.target.value && data.quantity_received) {
+                        const total = parseFloat(e.target.value);
+                        const qty = parseFloat(data.quantity_received);
+                        if (total > 0 && qty > 0) {
+                            setData('unit_cost', (total / qty).toFixed(4));
+                        }
+                    }
+                }}
+                placeholder="e.g., 150.50"
+                disabled={processing}
+                step="0.01"
+                min="0"
+                required
+            />
+            <InputError message={errors.total_cost} />
+
+
+                    </div>
+                )}
+            </div>
+
+
+            <div className='grid grid-cols-1 gap-6 md:grid-cols-2'>
+
+
+{selectedItem?.tracking_type === 'by_measure' ? (
+    <>
+        <div>
+           <Label htmlFor="unit_cost">
         Unit Cost (per {itemUnit})
         <span className="text-xs text-muted-foreground ml-1">
             (Auto-calculated)
         </span>
     </Label>
+
     <Input
         id="unit_cost"
         type="number"
@@ -141,11 +180,13 @@ export function BatchForm({
             Unit cost is automatically calculated from total cost ÷ quantity
         </p>
     }
-                    </div>
-                )}
-            </div>
+        </div>
 
-            <div className='grid grid-cols-1 gap-6 md:grid-cols-2'>
+    </>
+) : null /* Remove cost fields for by_portion items */}
+
+
+
                 <div>
                     <Label htmlFor='source'>Source (Optional)</Label>
                     <Input
@@ -160,6 +201,7 @@ export function BatchForm({
             </div>
 
             <div className='grid grid-cols-1 gap-6 md:grid-cols-2'>
+
                 <div>
                     <Label htmlFor='received_at'>Received Date</Label>
                     <Popover>
@@ -240,53 +282,7 @@ export function BatchForm({
             </div>
 
             {/* Cost fields - only show for by_measure tracking type */}
-{selectedItem?.tracking_type === 'by_measure' ? (
-    <>
-        <div>
-            <Label htmlFor="total_cost" className="required">
-                Total Batch Cost
-            </Label>
-            <Input
-                id="total_cost"
-                type="number"
-                value={data.total_cost ?? ''}
-                onChange={(e) => {
-                    setData('total_cost', e.target.value);
-                    // Auto-calculate unit cost
-                    if (e.target.value && data.quantity_received) {
-                        const total = parseFloat(e.target.value);
-                        const qty = parseFloat(data.quantity_received);
-                        if (total > 0 && qty > 0) {
-                            setData('unit_cost', (total / qty).toFixed(4));
-                        }
-                    }
-                }}
-                placeholder="e.g., 150.50"
-                disabled={processing}
-                step="0.01"
-                min="0"
-                required
-            />
-            <InputError message={errors.total_cost} />
-        </div>
-        <div>
-            <Label htmlFor="unit_cost">
-                Unit Cost (per {itemUnit})
-                <span className="text-xs text-muted-foreground ml-1">
-                    (Auto-calculated)
-                </span>
-            </Label>
-            <Input
-                id="unit_cost"
-                type="number"
-                value={data.unit_cost ?? ''}
-                className="bg-muted"
-                readOnly
-                disabled={processing}
-            />
-        </div>
-    </>
-) : null /* Remove cost fields for by_portion items */}
+
 
             <div className='flex items-center justify-end gap-4 pt-4'>{children}</div>
         </form>

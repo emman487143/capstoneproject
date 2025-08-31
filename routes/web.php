@@ -69,7 +69,10 @@ Route::middleware('auth')->group(function () {
    Route::post('/inventory/transfers/{transfer}/reject', [TransferController::class, 'reject'])
     ->name('transfers.reject');
         Route::resource('transfers', TransferController::class)->only(['index', 'create', 'store', 'show', 'update']);
+        Route::get('transfers/{transfer}/receive', [TransferController::class, 'receive'])->name('transfers.receive');
     });
+
+
 
 
 Route::resource('products', ProductController::class);

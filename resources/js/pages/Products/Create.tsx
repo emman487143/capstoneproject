@@ -69,7 +69,6 @@ export default function Create({ categories, inventoryItems, branches }: CreateP
 
     // Type-safe branch update function
     const updateBranches = (newBranches: BranchAvailabilityData[]) => {
-        // Type assertion to ensure compatibility - this is safe because the structure matches
         setData('branches', newBranches);
     };
 
@@ -80,22 +79,15 @@ export default function Create({ categories, inventoryItems, branches }: CreateP
                 <Heading title="Create New Product" description="Add a new item to your menu with recipe details" />
 
                 <form onSubmit={handleSubmit} className="mt-6">
-                    {/* Single column layout with vertical stacking */}
                     <div className="space-y-6 max-w-4xl">
-                        {/* Product form details */}
                         <ProductForm
                             data={data}
                             setData={setData}
                             errors={errors}
                             categories={categories}
                             inventoryItems={inventoryItems}
-                        />
-
-                        {/* Branch availability placed below the form */}
-                        <BranchAvailability
                             branches={data.branches}
                             setBranches={updateBranches}
-                            errors={errors}
                         />
 
                         {/* Desktop action buttons */}
@@ -147,13 +139,12 @@ export default function Create({ categories, inventoryItems, branches }: CreateP
                             className="flex-1"
                         >
                             <Link href={route('products.index')}>
-                                <ArrowLeft className="h-4 w-4 mr-2" />
-                                Back
+                                <ArrowLeft className="h-4 w-4 mr-2" />                                <ArrowLeft className="h-4 w-4 mr-2" />
+                                Back Back
                             </Link>
                         </Button>
                     </div>
 
-                    {/* Bottom spacing to prevent content from being hidden behind mobile action bar */}
                     <div className="h-20 lg:hidden"></div>
                 </form>
             </div>

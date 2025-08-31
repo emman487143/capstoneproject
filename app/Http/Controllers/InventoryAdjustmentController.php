@@ -120,6 +120,6 @@ class InventoryAdjustmentController extends Controller
             return back()->with('error', 'An unexpected error occurred. Please try again.')->withInput();
         }
 
-        return redirect()->route('inventory.logs.index')->with('success', 'Inventory adjustment recorded successfully.');
+        return redirect()->route('inventory.index')->with('success', 'Inventory adjustment recorded successfully.');
     }
 }

@@ -12,6 +12,7 @@ import {
     MinusCircle,
     List,
     X,
+    PackageX,
 } from 'lucide-react';
 
 import {
@@ -80,6 +81,7 @@ interface IndexPageProps extends PagePropsType {
     stats: {
         lowStockCount: number;
         expiringSoonCount: number;
+        outOfStockCount: number;
     };
 }
 
@@ -90,8 +92,8 @@ export default function Index({
     items,
     branches,
     currentBranch,
-    filters,
     categories,
+    filters,
     stats,
 }: IndexPageProps) {
     const [activeFilters, setActiveFilters] = useState({
@@ -128,6 +130,8 @@ export default function Index({
         setActiveFilters(newFilters);
         applyFilters(newFilters);
     };
+
+
 
     const handleStatusButtonClick = (status: StatusFilter) => {
         const newStatus = activeFilters.status === status ? '' : status;
@@ -173,6 +177,9 @@ export default function Index({
     );
     };
 
+    // Count out of stock items from the paginated items (current page only)
+    const outOfStockCount = items.data.filter(item => item.status === 'Out of Stock').length;
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Inventory Overview" />
@@ -208,7 +215,7 @@ export default function Index({
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+               <div className="grid grid-cols-3 gap-4">
                     <Card className="p-4 gap-1">
                         <div className="flex items-center justify-between">
                             <p className="text-sm font-medium">Low Stock</p>
@@ -227,6 +234,16 @@ export default function Index({
                         <div>
                             <div className="text-2xl font-bold text-orange-500">{stats.expiringSoonCount}</div>
                             <p className="text-xs text-muted-foreground">Expires within 7 days</p>
+                        </div>
+                    </Card>
+                    <Card className="p-4 gap-1">
+                        <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium">Out of Stock</p>
+                            <PackageX className="h-4 w-4 text-gray-500" />
+                        </div>
+                        <div>
+                            <div className="text-2xl font-bold text-gray-500">{stats.outOfStockCount}</div>
+                            <p className="text-xs text-muted-foreground">Items with zero inventory</p>
                         </div>
                     </Card>
                 </div>
@@ -408,11 +425,11 @@ export default function Index({
                             )}
                         </div>
 
-                        {items.meta && items.meta.last_page > 1 && (
-                            <div className="mt-6 flex justify-center">
-                                <Pagination links={items.meta.links} />
-                            </div>
-                        )}
+                        {items.last_page > 1 && (
+    <div className="mt-6 flex justify-center">
+        <Pagination links={items.links} />
+    </div>
+)}
                     </CardContent>
                 </Card>
             </div>

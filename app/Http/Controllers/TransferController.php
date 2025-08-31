@@ -206,4 +206,27 @@ class TransferController extends Controller
     return redirect()->route('inventory.transfers.show', $transfer)
         ->with('success', "Transfer #{$transfer->id} has been rejected. All items have been returned to the source branch.");
 }
+
+public function receive(Transfer $transfer): Response
+{
+    $this->authorize('update', $transfer);
+
+    $transfer->load([
+        'items.inventoryItem',
+        'items.inventoryBatch',
+        'items.inventoryBatchPortion',
+        'sourceBranch',
+        'destinationBranch',
+        'sendingUser',
+        'receivingUser',
+    ]);
+
+    return Inertia::render('Transfers/Receive', [
+        'transfer' => $transfer,
+        'can' => [
+            'update' => Auth::user()->can('update', $transfer),
+            'cancel' => Auth::user()->can('cancel', $transfer),
+        ],
+    ]);
+}
 }

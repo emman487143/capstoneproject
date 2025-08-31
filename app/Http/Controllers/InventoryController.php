@@ -90,6 +90,21 @@ class InventoryController extends Controller
                 ->whereRaw('expiration_date <= DATE_ADD(NOW(), INTERVAL inventory_items.days_to_warn_before_expiry DAY)')
             )->count();
 
+
+        $outOfStockCount = InventoryItem::query()
+    ->join('branch_inventory_item as bi_stats', function ($join) use ($selectedBranchId) {
+        $join->on('inventory_items.id', '=', 'bi_stats.inventory_item_id')
+             ->where('bi_stats.branch_id', '=', $selectedBranchId);
+    })
+    ->leftJoin('inventory_batches as ib', function ($join) use ($selectedBranchId) {
+        $join->on('inventory_items.id', '=', 'ib.inventory_item_id')
+             ->where('ib.branch_id', '=', $selectedBranchId);
+    })
+    ->selectRaw('inventory_items.id, SUM(ib.remaining_quantity) as current_stock')
+    ->groupBy('inventory_items.id')
+    ->havingRaw('current_stock IS NULL OR current_stock <= 0')
+    ->get()->count();
+
         // --- MAIN QUERY WITH SUBQUERIES INSTEAD OF HAVING ---
         $itemsQuery = InventoryItem::query()
     ->with('category:id,name')
@@ -209,6 +224,7 @@ class InventoryController extends Controller
             'stats' => [
                 'lowStockCount' => $lowStockCount,
                 'expiringSoonCount' => $expiringSoonCount,
+                'outOfStockCount' => $outOfStockCount,
             ],
         ]);
     }

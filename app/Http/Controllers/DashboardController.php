@@ -148,22 +148,27 @@ class DashboardController extends Controller
             ];
 
             // Get recent activity logs
-            $recentInventoryLogs = InventoryLog::whereHas('portion', function ($query) use ($selectedBranchId) {
-                $query->where('current_branch_id', $selectedBranchId);
-            })
-                ->with('user:id,name', 'portion.batch.inventoryItem:id,name')
+            $recentInventoryLogs = InventoryLog::with([
+                    'user:id,name',
+                    'portion.batch.inventoryItem:id,name,tracking_type,unit',
+                    'batch.inventoryItem:id,name,tracking_type,unit',
+                ])
+                ->where(function ($query) use ($selectedBranchId) {
+                    $query->whereHas('portion', function ($q) use ($selectedBranchId) {
+                        $q->where('current_branch_id', $selectedBranchId);
+                    })
+                    ->orWhereHas('batch', function ($q) use ($selectedBranchId) {
+                        $q->where('branch_id', $selectedBranchId);
+                    });
+                })
                 ->latest()
-                ->take(5)
+                ->take(10)
                 ->get()
-                ->map(function (InventoryLog $log) {
-                    return [
-                        'id' => $log->id,
-                        'type' => 'inventory',
-                        'action' => $log->action->value,
-                        'details' => $this->formatActivityDetails($log),
-                        'created_at' => $log->created_at->toDateTimeString(),
-                        'user' => $log->user,
-                    ];
+                ->map(function ($log) {
+                    // Use your LogDetailFormatter if available, otherwise mimic its output
+                    $log->formatted_details = app(\App\Services\LogDetailFormatter::class)->format($log);
+                    $log->parsed_details = is_string($log->details) ? json_decode($log->details, true) : $log->details;
+                    return $log;
                 });
 
             // Get recent sale

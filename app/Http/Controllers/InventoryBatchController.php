@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Http\JsonResponse;
+use App\Http\Requests\RestoreQuantityRequest;
+
 class InventoryBatchController extends Controller
 {
     public function __construct(protected InventoryService $inventoryService)
@@ -256,3 +258,4 @@ public function correctCount(CorrectBatchCountRequest $request, InventoryBatch $
     }
 }
 }
+

@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { Auth, BreadcrumbItem, Transfer } from '@/types';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, useForm, usePage, Link } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import StatusBadge from './Partials/StatusBadge';
@@ -229,10 +229,11 @@ export default function Show({ transfer, can }: ShowPageProps) {
                                         <AlertTriangle className="mr-2 h-4 w-4" />
                                         Reject Transfer
                                     </Button>
-                                    <Button onClick={() => setIsReceiving(true)} className="w-full sm:w-auto">
+                                    <Link href={route('inventory.transfers.receive', transfer.id)} className="w-full sm:w-auto">
                                         <PackageCheck className="mr-2 h-4 w-4" />
                                         Receive Items
-                                    </Button>
+                                    </Link>
+
                                 </div>
                             )}
                         </CardFooter>
@@ -302,11 +303,7 @@ export default function Show({ transfer, can }: ShowPageProps) {
             </div>
 
             {/* Transfer Reception Form */}
-            <TransferReceptionForm
-                isOpen={isReceiving}
-                onClose={() => setIsReceiving(false)}
-                transfer={transfer}
-            />
+
 
             {/* Reject Transfer Dialog */}
             <Dialog open={showRejectAll} onOpenChange={setShowRejectAll}>

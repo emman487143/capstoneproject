@@ -33,6 +33,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import LogDetail from '@/pages/Inventory/Log/Partials/LogDetail';
 
 // Update the DashboardStats interface
 interface DashboardStats {
@@ -61,6 +62,17 @@ interface ActivityLog {
     created_at: string;
     user: { name: string } | null;
     status?: string;
+    // Add these for consistency with Log
+    formatted_details?: {
+        title?: string;
+        description?: string;
+        quantityInfo?: string;
+        reason?: string;
+        metadata?: Array<{ label: string; value: string }>;
+
+
+    };
+    parsed_details?: any;
 }
 
 // Add new interfaces for the additional data types
@@ -215,18 +227,8 @@ export default function Dashboard({
 
                 {/* Stat Cards */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <Link href={route('inventory.index', { branch: currentBranch?.id, filter: 'low_stock' })}>
-                        <Card className="hover:bg-muted/50 transition-colors">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Low Stock Items</CardTitle>
-                                <AlertTriangle className="h-4 w-4 text-destructive" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-destructive">{stats.lowStockCount}</div>
-                                <p className="text-xs text-muted-foreground">Items below threshold</p>
-                            </CardContent>
-                        </Card>
-                    </Link>
+
+
                     <Link href={route('sales.index', { branch: currentBranch?.id, filter: 'today' })}>
                         <Card className="hover:bg-muted/50 transition-colors">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -236,6 +238,18 @@ export default function Dashboard({
                             <CardContent>
                                 <div className="text-2xl font-bold">{stats.salesTodayCount}</div>
                                 <p className="text-xs text-muted-foreground">Total sales recorded today</p>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                     <Link href={route('inventory.index', { branch: currentBranch?.id, status: 'low_stock' })}>
+                        <Card className="hover:bg-muted/50 transition-colors">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Low Stock Items</CardTitle>
+                                <AlertTriangle className="h-4 w-4 text-destructive" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold text-destructive">{stats.lowStockCount}</div>
+                                <p className="text-xs text-muted-foreground">Items below threshold</p>
                             </CardContent>
                         </Card>
                     </Link>
@@ -564,13 +578,24 @@ export default function Dashboard({
                                         recentInventoryLogs.map((log) => (
                                             <TableRow key={`inventory-${log.id}`}>
                                                 <TableCell>
-                                                    <Badge className={cn('text-white', getActionBadgeClass(log.type, log.action))}>
+                                                    <Badge className={cn('text-white', getActionBadgeClass('inventory', log.action))}>
                                                         {log.action.replace(/_/g, ' ')}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="font-medium">
-                                                    <div className="font-medium">{log.details.title}</div>
-                                                    <div className="text-sm text-muted-foreground">{log.details.description}</div>
+                                                    <LogDetail
+                                                        action={log.action}
+                                                        details={
+                                                            log.formatted_details || {
+                                                                title: '',
+                                                                description: '',
+                                                                quantityInfo: '',
+                                                                reason: '',
+                                                                metadata: [],
+                                                            }
+                                                        }
+                                                        rawDetails={log.parsed_details || (typeof log.details === 'string' ? JSON.parse(log.details) : log.details)}
+                                                    />
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <div>{log.user?.name ?? 'System'}</div>

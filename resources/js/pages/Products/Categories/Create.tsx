@@ -18,7 +18,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function Create() {
     const { data, setData, post, processing, errors } = useForm({
         name: '',
-        description: '',
     });
 
     function handleSubmit(e: FormEvent) {

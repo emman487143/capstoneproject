@@ -5,7 +5,6 @@ import  InputError  from '@/components/input-error';
 
 interface CategoryFormData {
     name: string;
-    description: string;
 }
 
 interface CategoryFormProps {
@@ -28,16 +27,6 @@ export default function CategoryForm({ data, setData, errors }: CategoryFormProp
                     autoFocus
                 />
                 <InputError message={errors.name} />
-            </div>
-            <div className="grid gap-2">
-                <Label htmlFor="description">Description (Optional)</Label>
-                <Textarea
-                    id="description"
-                    value={data.description}
-                    onChange={(e) => setData('description', e.target.value)}
-                    rows={4}
-                />
-                <InputError message={errors.description} />
             </div>
         </div>
     );

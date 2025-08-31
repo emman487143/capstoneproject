@@ -110,9 +110,11 @@ const salesNavItems: NavItem[] = [
                 <AppLogo />
             </SidebarHeader>
             <SidebarContent>
-                <SidebarMenu>
+                {auth.user.is_admin && (<SidebarMenu>
+
                     <NavMain items={mainNavItems} />
-                </SidebarMenu>
+                </SidebarMenu>)}
+
                 {/* Add the inventory menu here */}
                 <SidebarMenu>
                     <SidebarMenuButton className='pointer-events-none mt-4 h-auto justify-start rounded-lg px-3 py-2 text-sm'>

@@ -28,7 +28,7 @@ class RestorePortionsRequest extends FormRequest
                 // Use explicit exists rule without soft delete check
                 Rule::exists('inventory_batch_portions', 'id')
             ],
-            'reason' => ['required', 'string', 'min:10', 'max:255'],
+            'reason' => ['required', 'string', 'max:255'],
         ];
     }
 

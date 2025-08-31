@@ -1,4 +1,4 @@
-import { useForm } from '@inertiajs/react';
+import { useForm, Link } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 import { Branch } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -95,6 +95,15 @@ export default function BranchForm({ branch, onSubmit, submitButtonText = 'Save 
             </div>
 
             <div className="flex justify-end mt-6">
+                <Button
+                                type="button"
+                                variant="outline"
+                                asChild
+                            >
+                                <Link href={route('branches.index')}>
+                                    Cancel
+                                </Link>
+                            </Button>
                 <Button type="submit" disabled={processing}>
                     {processing && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
                     {submitButtonText}

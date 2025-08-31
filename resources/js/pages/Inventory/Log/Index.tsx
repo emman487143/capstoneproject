@@ -1,6 +1,6 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { format } from 'date-fns';
-import { FormEvent, useEffect } from 'react';
+import { FormEvent, useEffect, useState, ChangeEvent } from 'react';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
 import { Branch, BreadcrumbItem, Log, PaginatedResponse, SharedData } from '@/types';
@@ -15,6 +15,9 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import BranchSwitcher from '@/components/branch-switcher';
 import LogDetail from './Partials/LogDetail';
+import { Input } from '@/components/ui/input';
+import { useDebouncedCallback } from 'use-debounce';
+import { X, Search } from 'lucide-react';
 
 type IndexPageProps = SharedData & {
     logs: PaginatedResponse<Log>;
@@ -23,6 +26,7 @@ type IndexPageProps = SharedData & {
     filters: {
         action?: string;
         branch?: string;
+        search?: string;
     };
 };
 
@@ -47,11 +51,26 @@ const actionBadgeClasses: Record<string, string> = {
 
 export default function Index({ logs, branches, currentBranch, filters }: IndexPageProps) {
     const { auth, flash } = usePage<SharedData>().props;
-    const { data, setData, get, processing } = useForm({
+    const { data, setData } = useForm({
         action: filters.action || 'all',
         branch: filters.branch || currentBranch?.id.toString() || '',
+        search: filters.search || '',
     });
+    const [searchTerm, setSearchTerm] = useState(filters.search || '');
+    const debouncedSearch = useDebouncedCallback((value: string) => {
+        router.get(route('inventory.logs.index'), { search: value }, { preserveState: true, replace: true });
+    }, 300);
 
+    const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setSearchTerm(value);
+        debouncedSearch(value);
+    };
+
+    const clearSearch = () => {
+        setSearchTerm('');
+        router.get(route('inventory.logs.index'), {}, { preserveState: true, replace: true });
+    };
     useEffect(() => {
         if (flash.success) {
             toast.success(flash.success);
@@ -61,12 +80,14 @@ export default function Index({ logs, branches, currentBranch, filters }: IndexP
         }
     }, [flash]);
 
-    const handleFilter = (e: FormEvent) => {
-        e.preventDefault();
-        get(route('inventory.logs.index'), {
-            preserveState: true,
-            preserveScroll: true,
-        });
+    // Instant action filter handler
+    const handleActionChange = (value: string) => {
+        setData('action', value);
+        router.get(route('inventory.logs.index'), {
+            ...data,
+            action: value,
+            search: searchTerm,
+        }, { preserveState: true, replace: true });
     };
 
     const handleBranchChange = (branchId: string) => {
@@ -96,12 +117,16 @@ export default function Index({ logs, branches, currentBranch, filters }: IndexP
                 <Card>
                     <CardHeader>
                         <CardTitle>Filter Logs</CardTitle>
-                        <form onSubmit={handleFilter} className="flex items-end gap-4 pt-2">
+                        <div className="flex items-end gap-4 pt-2">
                             <div className="flex-1">
                                 <Label htmlFor="action" className="sr-only">
                                     Action
                                 </Label>
-                                <Select name="action" value={data.action} onValueChange={(value) => setData('action', value)}>
+                                <Select
+                                    name="action"
+                                    value={data.action}
+                                    onValueChange={handleActionChange}
+                                >
                                     <SelectTrigger className="w-full md:w-[200px]">
                                         <SelectValue placeholder="Filter by action" />
                                     </SelectTrigger>
@@ -121,10 +146,27 @@ export default function Index({ logs, branches, currentBranch, filters }: IndexP
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <Button type="submit" disabled={processing}>
-                                Filter
-                            </Button>
-                        </form>
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search by item, batch, or user..."
+                                    value={searchTerm}
+                                    onChange={handleSearchChange}
+                                    className="pl-10 w-full md:w-[220px] lg:w-[320px]"
+                                />
+                                {searchTerm && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6"
+                                        onClick={clearSearch}
+                                        tabIndex={-1}
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <div className="rounded-md border overflow-hidden">

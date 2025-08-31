@@ -22,7 +22,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function Edit({ category }: EditProps) {
     const { data, setData, put, processing, errors } = useForm({
         name: category.name,
-        description: category.description || '',
     });
 
     function handleSubmit(e: FormEvent) {

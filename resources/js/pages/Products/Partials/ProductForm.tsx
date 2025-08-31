@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import InputError from '@/components/input-error';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import IngredientInput from './IngredientInput';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import BranchAvailability from './BranchAvailability';
 import { type InventoryItem, type ProductCategory, type Product } from '@/types';
 
 interface ProductFormData {
@@ -34,9 +36,14 @@ interface ProductFormProps {
     categories: ProductCategory[];
     inventoryItems: InventoryItem[];
     existingProduct?: Product;
+    branches: {
+        branch_id: number;
+        name: string;
+        is_available: boolean;
+    }[];
+    setBranches: (branches: { branch_id: number; name: string; is_available: boolean }[]) => void;
 }
 
-// Define interfaces for the extracted components
 interface BasicInfoCardProps {
     data: ProductFormData;
     setData: (key: keyof ProductFormData, value: any) => void;
@@ -51,13 +58,6 @@ interface ImageCardProps {
     errors: Partial<Record<string, string>>;
 }
 
-interface ProductTypeCardProps {
-    data: ProductFormData;
-    setData: (key: keyof ProductFormData, value: any) => void;
-    errors: Partial<Record<keyof ProductFormData | string, string>>;
-    existingProduct?: Product;
-}
-
 export default function ProductForm({
     data,
     setData,
@@ -65,6 +65,8 @@ export default function ProductForm({
     categories,
     inventoryItems,
     existingProduct,
+    branches,
+    setBranches,
 }: ProductFormProps) {
     const [imagePreview, setImagePreview] = useState<string | null>(existingProduct?.image_url || null);
     const [activeTab, setActiveTab] = useState<string>("details");
@@ -87,10 +89,11 @@ export default function ProductForm({
             {/* Mobile Tab Navigation */}
             <div className="lg:hidden">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="grid grid-cols-3 w-full">
+                    <TabsList className="grid grid-cols-4 w-full">
                         <TabsTrigger value="details">Details</TabsTrigger>
                         <TabsTrigger value="image">Image</TabsTrigger>
                         <TabsTrigger value="recipe">Recipe</TabsTrigger>
+                        <TabsTrigger value="branches">Branches</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="details" className="pt-4 space-y-6">
@@ -99,13 +102,6 @@ export default function ProductForm({
                             setData={setData}
                             errors={errors}
                             categories={categories}
-                        />
-
-                        <ProductTypeCard
-                            data={data}
-                            setData={setData}
-                            errors={errors}
-                            existingProduct={existingProduct}
                         />
                     </TabsContent>
 
@@ -126,10 +122,18 @@ export default function ProductForm({
                             errors={errors}
                         />
                     </TabsContent>
+
+                    <TabsContent value="branches" className="pt-4">
+                        <BranchAvailability
+                            branches={branches}
+                            setBranches={setBranches}
+                            errors={errors}
+                        />
+                    </TabsContent>
                 </Tabs>
             </div>
 
-            {/* Desktop Layout - Single column with logical grouping */}
+            {/* Desktop Layout - Info, then Recipe, then 2 columns: Image | Branches */}
             <div className="hidden lg:block space-y-6">
                 <BasicInfoCard
                     data={data}
@@ -138,6 +142,15 @@ export default function ProductForm({
                     categories={categories}
                 />
 
+                {/* Recipe Ingredients alone */}
+                <IngredientInput
+                    ingredients={data.ingredients}
+                    inventoryItems={inventoryItems}
+                    setIngredients={(newIngredients) => setData('ingredients', newIngredients)}
+                    errors={errors}
+                />
+
+                {/* Product Image and Branch Availability side by side */}
                 <div className="grid grid-cols-2 gap-6">
                     <ImageCard
                         imagePreview={imagePreview}
@@ -145,21 +158,12 @@ export default function ProductForm({
                         removeImage={removeImage}
                         errors={errors}
                     />
-
-                    <ProductTypeCard
-                        data={data}
-                        setData={setData}
+                    <BranchAvailability
+                        branches={branches}
+                        setBranches={setBranches}
                         errors={errors}
-                        existingProduct={existingProduct}
                     />
                 </div>
-
-                <IngredientInput
-                    ingredients={data.ingredients}
-                    inventoryItems={inventoryItems}
-                    setIngredients={(newIngredients) => setData('ingredients', newIngredients)}
-                    errors={errors}
-                />
             </div>
         </div>
     );
@@ -174,6 +178,7 @@ function BasicInfoCard({ data, setData, errors, categories }: BasicInfoCardProps
                 <CardDescription>Define the core details of this menu item</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+                {/* Product Name */}
                 <div className="grid gap-2">
                     <Label htmlFor="name">
                         Product Name <span className="text-destructive">*</span>
@@ -190,6 +195,7 @@ function BasicInfoCard({ data, setData, errors, categories }: BasicInfoCardProps
                     <InputError message={errors.name} />
                 </div>
 
+                {/* Category */}
                 <div className="grid gap-2">
                     <div className="flex items-center justify-between">
                         <Label htmlFor="category">
@@ -224,7 +230,34 @@ function BasicInfoCard({ data, setData, errors, categories }: BasicInfoCardProps
                     <InputError message={errors.product_category_id} />
                 </div>
 
+                {/* Product Type (Main/Add-on) */}
                 <div className="grid gap-2">
+                    <Label className="text-base">Product Type <span className="text-destructive">*</span></Label>
+                    <RadioGroup
+                        value={data.is_addon ? 'addon' : 'main'}
+                        onValueChange={(value) => setData('is_addon', value === 'addon')}
+                        className="flex flex-col gap-2"
+                    >
+                        <Label className="flex items-center gap-3 p-2 border rounded-md cursor-pointer">
+                            <RadioGroupItem value="main" id="main" />
+                            <div>
+                                <span className="font-medium">Main Menu Item</span>
+
+                            </div>
+                        </Label>
+                        <Label className="flex items-center gap-3 p-2 border rounded-md cursor-pointer">
+                            <RadioGroupItem value="addon" id="addon" />
+                            <div>
+                                <span className="font-medium">Add-on Item</span>
+
+                            </div>
+                        </Label>
+                    </RadioGroup>
+                    <InputError message={errors.is_addon} />
+                </div>
+
+                {/* Description */}
+                {/* <div className="grid gap-2">
                     <Label htmlFor="description">Description (Optional)</Label>
                     <Textarea
                         id="description"
@@ -234,8 +267,9 @@ function BasicInfoCard({ data, setData, errors, categories }: BasicInfoCardProps
                         rows={3}
                     />
                     <InputError message={errors.description} />
-                </div>
+                </div> */}
 
+                {/* Price */}
                 <div className="grid gap-2">
                     <Label htmlFor="price">
                         Price (₱) <span className="text-destructive">*</span>
@@ -253,6 +287,19 @@ function BasicInfoCard({ data, setData, errors, categories }: BasicInfoCardProps
                     />
                     <InputError message={errors.price} />
                 </div>
+
+                {/* Product Status (Active/Inactive) */}
+                <div className="flex items-center gap-3">
+                    <Switch
+                        id="is_active"
+                        checked={data.is_active}
+                        onCheckedChange={(checked) => setData('is_active', checked)}
+                    />
+                    <Label htmlFor="is_active" className="font-medium">
+                    Set Item Active
+                    </Label>
+                </div>
+                <InputError message={errors.is_active} />
             </CardContent>
         </Card>
     );
@@ -302,58 +349,6 @@ function ImageCard({ imagePreview, handleImageChange, removeImage, errors }: Ima
                 <p className="text-xs text-muted-foreground mt-2">
                     Recommended: Square images with minimum 500x500px resolution
                 </p>
-            </CardContent>
-        </Card>
-    );
-}
-
-function ProductTypeCard({ data, setData, errors, existingProduct }: ProductTypeCardProps) {
-    return (
-        <Card>
-            <CardHeader className="pb-3">
-                <CardTitle>Product Type</CardTitle>
-                <CardDescription>Define how this product is used in your menu</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-3 border rounded-md">
-                    <div className="space-y-0.5">
-                        <Label htmlFor="is_addon" className="text-base">
-                            {data.is_addon ? 'Add-on Item' : 'Main Menu Item'}
-                        </Label>
-                        <p className="text-sm text-muted-foreground">
-                            {data.is_addon
-                                ? 'Can be added to main menu items'
-                                : 'Standalone item that can be ordered directly'}
-                        </p>
-                    </div>
-                    <Switch
-                        id="is_addon"
-                        checked={data.is_addon}
-                        onCheckedChange={(checked) => setData('is_addon', checked)}
-                    />
-                </div>
-                <InputError message={errors.is_addon} />
-
-                {/* Only show the is_active toggle if it's an existing product */}
-                {existingProduct && (
-                    <div className="flex items-center justify-between p-3 border rounded-md">
-                        <div className="space-y-0.5">
-                            <Label htmlFor="is_active" className="text-base">
-                                {data.is_active ? 'Active Product' : 'Inactive Product'}
-                            </Label>
-                            <p className="text-sm text-muted-foreground">
-                                {data.is_active
-                                    ? 'Available for staff to record sales'
-                                    : 'Hidden from sales recording interface'}
-                            </p>
-                        </div>
-                        <Switch
-                            id="is_active"
-                            checked={data.is_active}
-                            onCheckedChange={(checked) => setData('is_active', checked)}
-                        />
-                    </div>
-                )}
             </CardContent>
         </Card>
     );

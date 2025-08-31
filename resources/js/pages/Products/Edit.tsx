@@ -6,7 +6,6 @@ import AppLayout from '@/layouts/app-layout';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import ProductForm from './Partials/ProductForm';
-import BranchAvailability from './Partials/BranchAvailability';
 import { type BreadcrumbItem, type InventoryItem, type ProductCategory, type Product, type Branch, type SharedData } from '@/types';
 
 interface BranchAvailabilityData {
@@ -80,7 +79,7 @@ export default function Edit({ product, categories, inventoryItems, branches }: 
                 <form onSubmit={handleSubmit} className="mt-6">
                     {/* Single column layout with vertical stacking */}
                     <div className="space-y-6 max-w-4xl">
-                        {/* Product form details */}
+                        {/* Product form details, now includes branch availability */}
                         <ProductForm
                             data={data}
                             setData={setData}
@@ -88,13 +87,8 @@ export default function Edit({ product, categories, inventoryItems, branches }: 
                             categories={categories}
                             inventoryItems={inventoryItems}
                             existingProduct={product}
-                        />
-
-                        {/* Branch availability placed below the form */}
-                        <BranchAvailability
                             branches={data.branches}
                             setBranches={updateBranches}
-                            errors={errors}
                         />
 
                         {/* Desktop action buttons */}

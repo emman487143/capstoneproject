@@ -32,7 +32,6 @@ class ProductCategoryController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:product_categories,name',
-            'description' => 'nullable|string',
         ]);
 
         ProductCategory::create($validated);
@@ -51,7 +50,7 @@ class ProductCategoryController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:product_categories,name,' . $productCategory->id,
-            'description' => 'nullable|string',
+
         ]);
 
         $productCategory->update($validated);

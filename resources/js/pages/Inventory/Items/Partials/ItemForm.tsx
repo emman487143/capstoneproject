@@ -195,7 +195,7 @@ export default function ItemForm({
                     </div>
 
                     {/* Description */}
-                    <div className="space-y-2">
+                    {/* <div className="space-y-2">
                         <Label htmlFor="description">Description</Label>
                         <Textarea
                             id="description"
@@ -206,7 +206,7 @@ export default function ItemForm({
                             className="min-h-[100px]"
                         />
                         <InputError message={errors.description} />
-                    </div>
+                    </div> */}
                 </div>
             </CardContent>
         </Card>

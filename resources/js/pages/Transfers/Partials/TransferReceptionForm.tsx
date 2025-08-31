@@ -1,5 +1,4 @@
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -18,8 +17,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface Props {
-    isOpen: boolean;
-    onClose: () => void;
     transfer: Transfer;
 }
 
@@ -69,7 +66,7 @@ const statusOptions: { value: string; label: string }[] = [
     { value: 'rejected', label: '❌ Rejected' },
 ];
 
-export default function TransferReceptionForm({ isOpen, onClose, transfer }: Props) {
+export default function TransferReceptionForm({ transfer }: Props) {
     // Track open state for each group
     const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
     const [showRejectAll, setShowRejectAll] = useState(false);
@@ -127,27 +124,6 @@ export default function TransferReceptionForm({ isOpen, onClose, transfer }: Pro
 
         return groups;
     }, [data.items]);
-
-    // Reset form when dialog opens
-    useEffect(() => {
-        if (isOpen) {
-            // Reset form to default state
-            setData({
-                items: formattedItems,
-                reject_all: false,
-                rejection_reason: '',
-            });
-
-            setShowRejectAll(false);
-
-            // Default all groups to be open
-            const initialOpenState: Record<string, boolean> = {};
-            Object.keys(groupedItems).forEach(key => {
-                initialOpenState[key] = true;
-            });
-            setOpenGroups(initialOpenState);
-        }
-    }, [isOpen, transfer.items, formattedItems]);
 
     // Toggle group open/closed state
     const toggleGroup = (groupKey: string) => {
@@ -231,7 +207,7 @@ export default function TransferReceptionForm({ isOpen, onClose, transfer }: Pro
     post(route('inventory.transfers.reject', transfer.id), {
         onSuccess: () => {
             toast.success(`Transfer #${transfer.id} rejected successfully.`);
-            onClose();
+            // onClose(); // REMOVE onClose
         },
         onError: () => {
             toast.error('An error occurred while rejecting the transfer.');
@@ -257,7 +233,7 @@ const handleSubmit: FormEventHandler = (e) => {
         post(route('inventory.transfers.reject', transfer.id), {
             onSuccess: () => {
                 toast.success(`Transfer #${transfer.id} rejected successfully.`);
-                onClose();
+                // onClose(); // REMOVE onClose
             },
             onError: () => {
                 toast.error('An error occurred while rejecting the transfer.');
@@ -270,7 +246,7 @@ const handleSubmit: FormEventHandler = (e) => {
     put(route('inventory.transfers.update', transfer.id), {
         onSuccess: () => {
             toast.success(`Transfer #${transfer.id} received successfully.`);
-            onClose();
+            // onClose(); // REMOVE onClose
         },
         onError: () => {
             toast.error('An error occurred. Please review the form and try again.');
@@ -279,182 +255,140 @@ const handleSubmit: FormEventHandler = (e) => {
 };
 
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-4xl">
-                <DialogHeader>
-                    <DialogTitle>Receive Transfer #{transfer.id}</DialogTitle>
-                    <DialogDescription>Verify each item received from the source branch. Any discrepancies will be logged.</DialogDescription>
-                </DialogHeader>
-
-                {showRejectAll ? (
-                    <div className="space-y-4">
-                        <Alert variant="destructive">
-                            <AlertTriangle className="h-4 w-4" />
-                            <AlertTitle>You're rejecting this entire transfer</AlertTitle>
-                            <AlertDescription>
-                                This will mark all items as rejected and notify the source branch.
-                            </AlertDescription>
-                        </Alert>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="rejection-reason">Rejection Reason</Label>
-                            <Textarea
-                                id="rejection-reason"
-                                value={data.rejection_reason || ''}
-                                onChange={(e) => setData('rejection_reason', e.target.value)}
-                                placeholder="Please provide a reason for rejecting this transfer..."
-                                rows={3}
-                                className="resize-none"
-                            />
-                        </div>
-
-                        <div className="flex justify-end gap-2 mt-4">
-                            <Button
-                                variant="outline"
-                                onClick={() => setShowRejectAll(false)}
-                                disabled={processing}
-                            >
-                                Back to Review
-                            </Button>
-                            <Button
-                                variant="destructive"
-                                onClick={handleRejectAll}
-                                disabled={processing || !data.rejection_reason}
-                            >
-                                Confirm Rejection
-                            </Button>
-                        </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+            {showRejectAll ? (
+                <div className="space-y-4">
+                    <Alert variant="destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>You're rejecting this entire transfer</AlertTitle>
+                        <AlertDescription>
+                            This will mark all items as rejected and notify the source branch.
+                        </AlertDescription>
+                    </Alert>
+                    <div className="space-y-2">
+                        <Label htmlFor="rejection-reason">Rejection Reason</Label>
+                        <Textarea
+                            id="rejection-reason"
+                            value={data.rejection_reason || ''}
+                            onChange={(e) => setData('rejection_reason', e.target.value)}
+                            placeholder="Please provide a reason for rejecting this transfer..."
+                            rows={3}
+                            className="resize-none"
+                        />
                     </div>
-                ) : (
-                    <form onSubmit={handleSubmit}>
-                        <ScrollArea className="h-[60vh] p-1">
-                            <div className="space-y-6 p-4">
-                                {/* Group items by product and batch */}
-                                {Object.entries(groupedItems).map(([groupKey, group]) => (
-                                    <Card key={groupKey} className="overflow-hidden">
-                                        <Collapsible open={openGroups[groupKey]} onOpenChange={() => toggleGroup(groupKey)}>
-                                            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-accent" onClick={() => toggleGroup(groupKey)}>
-                                                <div className="flex flex-col">
-                                                    <div className="flex items-center gap-2">
-                                                        <h3 className="font-semibold">{group.name}</h3>
-                                                        <Badge variant="outline">Batch #{group.batch_number}</Badge>
-                                                    </div>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        {group.totalSent} {group.unit} · {group.items.length} {group.items.length > 1 ? 'items' : 'item'}
-                                                    </p>
-                                                </div>
-                                                <div className="flex items-center">
-                                                    <Select
-                                                        defaultValue="received"
-                                                        onValueChange={(value) => handleGroupStatusChange(groupKey, value)}
-                                                    >
-                                                        <SelectTrigger className="w-[180px] mr-2">
-                                                            <SelectValue placeholder="Set all status" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {statusOptions.map((option) => (
-                                                                <SelectItem key={option.value} value={option.value}>
-                                                                    {option.label}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                    <CollapsibleTrigger asChild>
-                                                        <Button variant="ghost" size="sm">
-                                                            {openGroups[groupKey] ? (
-                                                                <ChevronUp className="h-4 w-4" />
-                                                            ) : (
-                                                                <ChevronDown className="h-4 w-4" />
-                                                            )}
-                                                        </Button>
-                                                    </CollapsibleTrigger>
-                                                </div>
+                    <div className="flex justify-end gap-2 mt-4">
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowRejectAll(false)}
+                            disabled={processing}
+                        >
+                            Back to Review
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleRejectAll}
+                            disabled={processing || !data.rejection_reason}
+                        >
+                            Confirm Rejection
+                        </Button>
+                    </div>
+                </div>
+            ) : (
+                <>
+                    <div className="space-y-6 p-4">
+                        {/* Group items by product and batch */}
+                        {Object.entries(groupedItems).map(([groupKey, group]) => (
+                            <Card key={groupKey} className="overflow-hidden">
+                                <Collapsible open={openGroups[groupKey]} onOpenChange={() => toggleGroup(groupKey)}>
+                                    <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-accent" onClick={() => toggleGroup(groupKey)}>
+                                        <div className="flex flex-col">
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="font-semibold">{group.name}</h3>
+                                                <Badge variant="outline">Batch #{group.batch_number}</Badge>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground">
+                                                 {group.items.length} {group.items.length > 1 ? 'items' : 'item'}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center">
+                                            <Select
+                                                defaultValue="received"
+                                                onValueChange={(value) => handleGroupStatusChange(groupKey, value)}
+                                            >
+                                                <SelectTrigger className="w-[180px] mr-2">
+                                                    <SelectValue placeholder="Set all status" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {statusOptions.map((option) => (
+                                                        <SelectItem key={option.value} value={option.value}>
+                                                            {option.label}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <CollapsibleTrigger asChild>
+                                                <Button variant="ghost" size="sm">
+                                                    {openGroups[groupKey] ? (
+                                                        <ChevronUp className="h-4 w-4" />
+                                                    ) : (
+                                                        <ChevronDown className="h-4 w-4" />
+                                                    )}
+                                                </Button>
+                                            </CollapsibleTrigger>
+                                        </div>
+                                    </div>
+
+                                    <CollapsibleContent>
+                                        <CardContent className="pt-0 pb-4">
+                                            {/* Group notes field */}
+                                            <div className="mb-4 pb-4 border-b">
+                                                <Label htmlFor={`group-notes-${groupKey}`}>Notes for all items in this group</Label>
+                                                <Textarea
+                                                    id={`group-notes-${groupKey}`}
+                                                    placeholder="Add notes that apply to all items in this group..."
+                                                    onChange={(e) => handleGroupNotesChange(groupKey, e.target.value)}
+                                                    disabled={processing}
+                                                    className="mt-1"
+                                                />
                                             </div>
 
-                                            <CollapsibleContent>
-                                                <CardContent className="pt-0 pb-4">
-                                                    {/* Group notes field */}
-                                                    <div className="mb-4 pb-4 border-b">
-                                                        <Label htmlFor={`group-notes-${groupKey}`}>Notes for all items in this group</Label>
-                                                        <Textarea
-                                                            id={`group-notes-${groupKey}`}
-                                                            placeholder="Add notes that apply to all items in this group..."
-                                                            onChange={(e) => handleGroupNotesChange(groupKey, e.target.value)}
-                                                            disabled={processing}
-                                                            className="mt-1"
-                                                        />
-                                                    </div>
+                                            {/* Individual Items */}
+                                            <div className="space-y-4 mt-4">
+                                                <h4 className="text-sm font-medium text-muted-foreground">Individual Items</h4>
+                                                {group.items.map((item) => {
+                                                    const itemIndex = data.items.findIndex(i => i.id === item.id);
+                                                    const errorPath = `items.${itemIndex}`;
+                                                    const transferItem = transfer.items.find(ti => ti.id === item.id);
+                                                    const portion = transferItem?.inventory_batch_portion;
+                                                    const isByPortion = !!portion;
 
-                                                    {/* Only show individual items if there's more than one or if expanded view is requested */}
-                                                    {group.items.length > 1 && (
-                                                        <div className="space-y-4 mt-4">
-                                                            <h4 className="text-sm font-medium text-muted-foreground">Individual Items</h4>
-                                                            {group.items.map((item, index) => {
-                                                                const itemIndex = data.items.findIndex(i => i.id === item.id);
-                                                                const errorPath = `items.${itemIndex}`;
+                                                    return (
+                                                        <div
+                                                            key={item.id}
+                                                            className={
+                                                                isByPortion
+                                                                    ? "grid grid-cols-1 md:grid-cols-[180px_1fr_1fr] gap-4 p-3 rounded-md bg-accent/20 items-center"
+                                                                    : "grid grid-cols-1 md:grid-cols-2 gap-4 p-3 rounded-md bg-accent/20 items-center"
+                                                            }
+                                                        >
+                                                            {/* Portion Label (by_portion only) */}
+                                                            {isByPortion && (
+                                                                <div className="flex flex-col justify-center md:justify-start">
+                                                                    <span className="font-sans text-lg font-bold text-primary tracking-wide">
+                                                                        {portion.label}
+                                                                    </span>
+                                                                </div>
+                                                            )}
 
-                                                                return (
-                                                                    <div key={item.id} className="grid grid-cols-1 gap-4 p-3 rounded-md bg-accent/20 md:grid-cols-3">
-                                                                        <div>
-                                                                            <Label htmlFor={`status-${item.id}`}>Status</Label>
-                                                                            <Select
-                                                                                value={item.reception_status}
-                                                                                onValueChange={(value) => handleStatusChange(item.id, value)}
-                                                                                disabled={processing}
-                                                                            >
-                                                                                <SelectTrigger id={`status-${item.id}`}>
-                                                                                    <SelectValue placeholder="Select status..." />
-                                                                                </SelectTrigger>
-                                                                                <SelectContent>
-                                                                                    {statusOptions.map((opt) => (
-                                                                                        <SelectItem key={opt.value} value={opt.value}>
-                                                                                            {opt.label}
-                                                                                        </SelectItem>
-                                                                                    ))}
-                                                                                </SelectContent>
-                                                                            </Select>
-                                                                            <InputError message={getNestedError(`${errorPath}.reception_status`)} className="mt-1" />
-                                                                        </div>
-                                                                        <div>
-                                                                            <Label htmlFor={`quantity-${item.id}`}>Quantity Received</Label>
-                                                                            <Input
-                                                                                id={`quantity-${item.id}`}
-                                                                                type="number"
-                                                                                step="0.01"
-                                                                                value={item.received_quantity}
-                                                                                onChange={(e) => handleQuantityChange(item.id, e.target.value)}
-                                                                                disabled={processing || item.reception_status === 'rejected'}
-                                                                                max={item.sent_quantity}
-                                                                                min={0}
-                                                                            />
-                                                                            <InputError message={getNestedError(`${errorPath}.received_quantity`)} className="mt-1" />
-                                                                        </div>
-                                                                        <div>
-                                                                            <Label htmlFor={`notes-${item.id}`}>Individual Notes</Label>
-                                                                            <Input
-                                                                                id={`notes-${item.id}`}
-                                                                                value={item.reception_notes}
-                                                                                onChange={(e) => handleNotesChange(item.id, e.target.value)}
-                                                                                disabled={processing}
-                                                                                placeholder="Specific notes for this item"
-                                                                            />
-                                                                            <InputError message={getNestedError(`${errorPath}.reception_notes`)} className="mt-1" />
-                                                                        </div>
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    )}
-                                                    {group.items.length === 1 && (
-                                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                            {/* Status */}
                                                             <div>
-                                                                <Label htmlFor={`status-${group.items[0].id}`}>Status</Label>
+                                                                <Label htmlFor={`status-${item.id}`}>Status</Label>
                                                                 <Select
-                                                                    value={group.items[0].reception_status}
-                                                                    onValueChange={(value) => handleStatusChange(group.items[0].id, value)}
+                                                                    value={item.reception_status}
+                                                                    onValueChange={(value) => handleStatusChange(item.id, value)}
                                                                     disabled={processing}
                                                                 >
-                                                                    <SelectTrigger id={`status-${group.items[0].id}`}>
+                                                                    <SelectTrigger id={`status-${item.id}`}>
                                                                         <SelectValue placeholder="Select status..." />
                                                                     </SelectTrigger>
                                                                     <SelectContent>
@@ -465,55 +399,66 @@ const handleSubmit: FormEventHandler = (e) => {
                                                                         ))}
                                                                     </SelectContent>
                                                                 </Select>
+                                                                <InputError message={getNestedError(`${errorPath}.reception_status`)} className="mt-1" />
                                                             </div>
+
+                                                            {/* Quantity and Notes */}
                                                             <div>
-                                                                <Label htmlFor={`quantity-${group.items[0].id}`}>Quantity Received</Label>
+                                                                <Label htmlFor={`quantity-${item.id}`}>Quantity Received</Label>
                                                                 <Input
-                                                                    id={`quantity-${group.items[0].id}`}
+                                                                    id={`quantity-${item.id}`}
                                                                     type="number"
                                                                     step="0.01"
-                                                                    value={group.items[0].received_quantity}
-                                                                    onChange={(e) => handleQuantityChange(group.items[0].id, e.target.value)}
-                                                                    disabled={processing || group.items[0].reception_status === 'rejected'}
-                                                                    max={group.items[0].sent_quantity}
+                                                                    value={item.received_quantity}
+                                                                    onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                                                                    disabled={
+                                                                        processing ||
+                                                                        item.reception_status === 'rejected' ||
+                                                                        isByPortion // by_portion: always 1, not editable
+                                                                    }
+                                                                    max={item.sent_quantity}
                                                                     min={0}
                                                                 />
-                                                                {/* Use the helper function for the single item case as well */}
-                                                                <InputError
-                                                                    message={getNestedError(`items.${data.items.findIndex(i => i.id === group.items[0].id)}.received_quantity`)}
-                                                                    className="mt-1"
+                                                                <InputError message={getNestedError(`${errorPath}.received_quantity`)} className="mt-1" />
+                                                                <div className="flex items-center justify-between mt-2">
+                                                                    <Label htmlFor={`notes-${item.id}`}>Individual Notes</Label>
+                                                                </div>
+                                                                <Input
+                                                                    id={`notes-${item.id}`}
+                                                                    value={item.reception_notes}
+                                                                    onChange={(e) => handleNotesChange(item.id, e.target.value)}
+                                                                    disabled={processing}
+                                                                    placeholder="Specific notes for this item"
                                                                 />
+                                                                <InputError message={getNestedError(`${errorPath}.reception_notes`)} className="mt-1" />
                                                             </div>
                                                         </div>
-                                                    )}
-                                                </CardContent>
-                                            </CollapsibleContent>
-                                        </Collapsible>
-                                    </Card>
-                                ))}
-                            </div>
-                        </ScrollArea>
-                        <DialogFooter className="pt-6">
-                            <Button type="button" variant="outline" onClick={onClose} disabled={processing}>
-                                Cancel
-                            </Button>
-                            <Button
-                                variant="destructive"
-                                type="button"
-                                onClick={() => setShowRejectAll(true)}
-                                disabled={processing}
-                                className="mr-2"
-                            >
-                                Reject All
-                            </Button>
-                            <Button type="submit" disabled={processing}>
-                                {processing && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
-                                Confirm Reception
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                )}
-            </DialogContent>
-        </Dialog>
+                                                    );
+                                                })}
+                                            </div>
+                                        </CardContent>
+                                    </CollapsibleContent>
+                                </Collapsible>
+                            </Card>
+                        ))}
+                    </div>
+                    <div className="flex flex-wrap justify-end gap-2 pt-6">
+                        <Button
+                            variant="destructive"
+                            type="button"
+                            onClick={() => setShowRejectAll(true)}
+                            disabled={processing}
+                            className="mr-2"
+                        >
+                            Reject All
+                        </Button>
+                        <Button type="submit" disabled={processing}>
+                            {processing && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
+                            Confirm Reception
+                        </Button>
+                    </div>
+                </>
+            )}
+        </form>
     );
 }

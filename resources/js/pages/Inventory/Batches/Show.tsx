@@ -1,7 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { format } from 'date-fns';
 import { useState } from 'react';
-import { Edit, Wrench, MinusCircle, RefreshCw } from 'lucide-react';
+import { Edit, Wrench, MinusCircle, RefreshCw, Printer } from 'lucide-react'; // Add Printer icon
 import { type VariantProps } from 'class-variance-authority';
 
 import { BreadcrumbItem, InventoryBatch, SharedData } from '@/types';
@@ -52,6 +52,48 @@ export default function Show({ batch }: ShowPageProps) {
         }
     };
 
+    // Handler to print all portion labels
+    const handlePrintLabels = () => {
+        if (!batch.portions || batch.portions.length === 0) return;
+        // Open a new window with printable content
+        const printWindow = window.open('', '_blank', 'width=600,height=800');
+        if (!printWindow) return;
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>Printable Portion Labels - Batch #${batch.batch_number}</title>
+                <style>
+                    body { font-family: monospace; padding: 24px; }
+                    .label-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+                    .portion-label {
+                        border: 1px solid #333;
+                        border-radius: 6px;
+                        padding: 18px 0;
+                        text-align: center;
+                        font-size: 1.25rem;
+                        margin-bottom: 8px;
+                        font-weight: bold;
+                        letter-spacing: 2px;
+                    }
+                    .batch-title { font-size: 1.1rem; margin-bottom: 18px; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <div class="batch-title">Batch #${batch.batch_number} Portion Labels</div>
+                <div class="label-grid">
+                    ${batch.portions.map((portion: any) => `
+                        <div class="portion-label">${portion.label}</div>
+                    `).join('')}
+                </div>
+                <script>
+                    window.onload = function() { window.print(); }
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Batch #${batch.batch_number}`} />
@@ -75,10 +117,16 @@ export default function Show({ batch }: ShowPageProps) {
                         </Button>
 
                         {batch.inventory_item.tracking_type === 'by_portion' && (
-                            <Button variant="outline" onClick={() => setIsRestoreModalOpen(true)}>
-                                <RefreshCw className="mr-2 h-4 w-4" />
-                                Restore Portions
-                            </Button>
+                            <>
+                                <Button variant="outline" onClick={() => setIsRestoreModalOpen(true)}>
+                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                    Restore Portions
+                                </Button>
+                                <Button variant="outline" onClick={handlePrintLabels}>
+                                    <Printer className="mr-2 h-4 w-4" />
+                                    Print Portion Labels
+                                </Button>
+                            </>
                         )}
 
                         <Button asChild>

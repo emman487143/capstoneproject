@@ -71,7 +71,29 @@ class InventoryLogController extends Controller
         if ($actionFilter && $actionFilter !== 'all') {
             $query->where('action', $actionFilter);
         }
-
+$search = $request->input('search');
+if ($search) {
+    $query->where(function ($q) use ($search) {
+        $q->whereHas('batch.inventoryItem', function ($q2) use ($search) {
+            $q2->where('name', 'like', "%{$search}%");
+        })
+        ->orWhereHas('portion.batch.inventoryItem', function ($q2) use ($search) {
+            $q2->where('name', 'like', "%{$search}%");
+        })
+        ->orWhereHas('user', function ($q2) use ($search) {
+            $q2->where('name', 'like', "%{$search}%");
+        })
+        // Search by portion label (e.g., PB-CB-B1-01)
+        ->orWhereHas('portion', function ($q2) use ($search) {
+            $q2->where('label', 'like', "%{$search}%");
+        })
+        // Search by batch number (e.g., 12 or Batch #12)
+        ->orWhereHas('batch', function ($q2) use ($search) {
+    $q2->where('batch_number', 'like', "%{$search}%");
+})
+        ->orWhere('details', 'like', "%{$search}%");
+    });
+}
         // Eager load all necessary relationships for both
         // batch-level and portion-level logs to prevent N+1 queries.
         $query->with([

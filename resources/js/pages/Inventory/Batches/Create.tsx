@@ -144,7 +144,7 @@ export default function CreateInventoryBatch(props: PageProps<CreateBatchProps>)
                             <div className='flex items-center justify-end gap-4'>
                                 <Link
                                     href={route('inventory.items.batches.index', {
-                                        item: preselectedItem?.id,
+                                        item: preselectedItem?.id, branch: preselectedBranch?.id
                                     })}
                                 >
                                     <Button variant='outline'>Cancel</Button>

@@ -4,6 +4,7 @@ import {
   ChevronRightIcon,
   MoreHorizontalIcon,
 } from "lucide-react"
+import { Link, } from "@inertiajs/react"
 
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -39,6 +40,10 @@ function PaginationItem({ ...props }: React.ComponentProps<"li">) {
 
 type PaginationLinkProps = {
   isActive?: boolean
+  size?: "icon" | "default"
+  href?: string
+  className?: string
+  children?: React.ReactNode
 } & Pick<React.ComponentProps<typeof Button>, "size"> &
   React.ComponentProps<"a">
 
@@ -46,10 +51,34 @@ function PaginationLink({
   className,
   isActive,
   size = "icon",
+  href,
+  children,
   ...props
 }: PaginationLinkProps) {
+  if (!href) {
+    return (
+      <span
+        aria-current={isActive ? "page" : undefined}
+        data-slot="pagination-link"
+        data-active={isActive}
+        className={cn(
+          buttonVariants({
+            variant: isActive ? "outline" : "ghost",
+            size,
+          }),
+          className
+        )}
+        {...props}
+      >
+        {children}
+      </span>
+    )
+  }
   return (
-    <a
+    <Link
+      href={href}
+      preserveScroll
+      preserveState
       aria-current={isActive ? "page" : undefined}
       data-slot="pagination-link"
       data-active={isActive}
@@ -60,8 +89,9 @@ function PaginationLink({
         }),
         className
       )}
-      {...props}
-    />
+    >
+      {children}
+    </Link>
   )
 }
 

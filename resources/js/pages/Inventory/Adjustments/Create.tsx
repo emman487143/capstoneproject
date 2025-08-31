@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, Link } from '@inertiajs/react';
 import { FormEventHandler, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -20,6 +20,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
+import { ArrowLeft } from 'lucide-react';
 
 // --- Type Definitions ---
 interface Portion {
@@ -319,6 +320,7 @@ export default function Create({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Record Adjustment" />
             <div className="p-4 sm:p-6 lg:p-8">
+
                 <form onSubmit={submit} className="max-w-2xl mx-auto space-y-6">
                     <Heading
                         title="Record Adjustment"

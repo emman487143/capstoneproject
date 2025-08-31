@@ -23,10 +23,18 @@ class CorrectBatchCountRequest extends FormRequest
      */
     public function rules(): array
     {
+        $batch = $this->route('batch');
+    // Calculate how much has already been used from this batch
+    $used = $batch->quantity_received - $batch->remaining_quantity;
+
         return [
-            'corrected_quantity' => ['required', 'numeric', 'min:0.01'],
-            'reason' => ['required', 'string', 'min:10', 'max:255'],
-        ];
+        'corrected_quantity' => [
+            'required',
+            'numeric',
+            'min:' . $used, // Prevent setting below used
+        ],
+        'reason' => ['required', 'string', 'max:255'],
+    ];
     }
 
     /**
@@ -36,12 +44,15 @@ class CorrectBatchCountRequest extends FormRequest
      */
     public function messages(): array
     {
+         $batch = $this->route('batch');
+    $used = $batch->quantity_received - $batch->remaining_quantity;
+
         return [
             'corrected_quantity.required' => 'A corrected quantity is required.',
             'corrected_quantity.numeric' => 'The corrected quantity must be a number.',
             'corrected_quantity.min' => 'The corrected quantity must be greater than zero.',
             'reason.required' => 'A detailed reason for this correction is required.',
-            'reason.min' => 'The reason must be at least 10 characters.',
+             'corrected_quantity.min' => "Corrected quantity cannot be less than the amount already used from this batch ({$used}).",
         ];
     }
 }
