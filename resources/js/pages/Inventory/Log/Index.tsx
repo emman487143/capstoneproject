@@ -190,7 +190,8 @@ export default function Index({ logs, branches, currentBranch, filters }: IndexP
 
                                             const itemIdentifier =
                                                 log.portion?.label ||
-                                                (log.batch ? `Batch #${log.batch.batch_number}` : 'N/A');
+                                                (log.batch?.label ? log.batch.label :
+                                                    log.batch ? `Batch #${log.batch.batch_number}` : 'N/A');
 
                                             // Check if this is a portion-tracked item
                                             const isPortion = !!log.portion;
@@ -209,6 +210,10 @@ export default function Index({ logs, branches, currentBranch, filters }: IndexP
                                                         <div className="font-medium">{itemName}</div>
                                                         {isPortion ? (
                                                             <div className="text-xs rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 inline-block mt-1">
+                                                                {itemIdentifier}
+                                                            </div>
+                                                        ) : log.batch?.label ? (
+                                                            <div className="text-xs rounded bg-slate-100/70 dark:bg-slate-800/70 px-1.5 py-0.5 inline-block mt-1 font-mono">
                                                                 {itemIdentifier}
                                                             </div>
                                                         ) : (

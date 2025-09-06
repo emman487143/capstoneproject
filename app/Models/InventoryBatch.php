@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Enums\Inventory\LogAction;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Builder;
+
+
 class InventoryBatch extends Model
 {
     /** @use HasFactory<\Database\Factories\InventoryBatchFactory> */
@@ -19,6 +22,7 @@ class InventoryBatch extends Model
     protected $fillable = [
         'inventory_item_id',
          'batch_number',
+         'label',
         'branch_id',
         'received_at',
         'source',
@@ -90,5 +94,32 @@ class InventoryBatch extends Model
         return $query->where('branch_id', $branch->id)
                      ->where('remaining_quantity', '>', 0)
                      ->with('item'); // Eager load the item relationship for efficiency
+    }
+    /**
+     * Get negative adjustments for this batch.
+     */
+    public function negative_adjustments()
+    {
+        return $this->hasMany(InventoryLog::class, 'inventory_batch_id')
+            ->whereIn('action', [
+                LogAction::ADJUSTMENT_SPOILAGE->value,
+                LogAction::ADJUSTMENT_WASTE->value,
+                LogAction::ADJUSTMENT_THEFT->value,
+                LogAction::ADJUSTMENT_OTHER->value,
+            ])
+            ->where(function($query) {
+                // Case 1: direct quantity_change field is negative
+                $query->whereRaw("JSON_EXTRACT(details, '$.quantity_change') < 0")
+                // Case 2: quantity_adjusted with adjustment_direction=decrease
+                ->orWhere(function($q) {
+                    $q->whereRaw("JSON_EXTRACT(details, '$.quantity_adjusted') > 0")
+                      ->whereRaw("JSON_EXTRACT(details, '$.adjustment_direction') = '\"decrease\"'");
+                })
+                // Case 3: original_quantity > new_quantity
+                ->orWhere(function($q) {
+                    $q->whereRaw("JSON_EXTRACT(details, '$.original_quantity') > JSON_EXTRACT(details, '$.new_quantity')");
+                });
+            })
+            ->orderByDesc('created_at'); // Ensure newest adjustments appear first
     }
 }

@@ -23,12 +23,13 @@ class StoreSaleRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', 'exists:products,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
-            'notes' => ['nullable', 'string', 'max:1000'],
-            'branch_id' => ['sometimes', 'integer', 'exists:branches,id'],
-        ];
+         return [
+        'items' => ['required', 'array', 'min:1'],
+        'items.*.product_id' => ['required', 'exists:products,id'],
+        'items.*.quantity' => ['required', 'integer', 'min:1'],
+        'items.*.modifications' => ['nullable', 'array'],
+        'notes' => ['nullable', 'string', 'max:1000'],
+        'branch_id' => ['required', 'exists:branches,id'],
+    ];
     }
 }

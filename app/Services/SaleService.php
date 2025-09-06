@@ -60,33 +60,50 @@ class SaleService
     /**
      * Aggregates all required ingredients from the list of products being sold.
      */
- private function getRequiredIngredients(array $saleItemsData): array
-    {
-        $required = [];
-        $productIds = array_column($saleItemsData, 'product_id');
-        // Eager load ingredients for all products in the sale for efficiency.
-        $products = Product::with('ingredients')->findMany($productIds)->keyBy('id');
+private function getRequiredIngredients(array $saleItemsData): array
+{
+    $required = [];
+    $productIds = array_column($saleItemsData, 'product_id');
+    // Eager load ingredients for all products in the sale for efficiency.
+    $products = Product::with('ingredients')->findMany($productIds)->keyBy('id');
 
-        foreach ($saleItemsData as $item) {
-            if (! $product = $products->get($item['product_id'])) {
-                continue; // Failsafe if a product isn't found
-            }
-
-            foreach ($product->ingredients as $ingredient) {
-                // CRITICAL FIX: Access the ingredient's ID directly from the related model.
-                $itemId = $ingredient->id;
-                // CRITICAL FIX: Access the recipe quantity from the 'pivot' attribute.
-                $quantityForOneProduct = $ingredient->pivot->quantity_required;
-
-                $quantityNeeded = $item['quantity'] * $quantityForOneProduct;
-
-                // Correctly aggregate the total quantity needed for each ingredient ID.
-                $required[$itemId] = ($required[$itemId] ?? 0) + $quantityNeeded;
-            }
+    foreach ($saleItemsData as $item) {
+        if (!$product = $products->get($item['product_id'])) {
+            continue; // Failsafe if a product isn't found
         }
 
-        return $required;
+        // Process each instance separately based on modifications
+        $instanceCount = $item['quantity'];
+        $modifications = $item['modifications'] ?? array_fill(0, $instanceCount, []);
+
+        // Ensure we have modification arrays for each instance
+        while (count($modifications) < $instanceCount) {
+            $modifications[] = [];
+        }
+
+        // Process each instance with its specific modifications
+        foreach ($modifications as $instanceModifications) {
+            // Get removed ingredient IDs for this instance
+            $removedIngredientIds = collect($instanceModifications)
+                ->where('type', 'remove')
+                ->pluck('inventory_item_id')
+                ->toArray();
+
+            // Process each ingredient, skipping removed ones
+            foreach ($product->ingredients as $ingredient) {
+                $itemId = $ingredient->id;
+                $quantityForOneProduct = $ingredient->pivot->quantity_required;
+
+                // Skip if this ingredient should be removed for this instance
+                if (!in_array($itemId, $removedIngredientIds)) {
+                    $required[$itemId] = ($required[$itemId] ?? 0) + $quantityForOneProduct;
+                }
+            }
+        }
     }
+
+    return $required;
+}
     /**
      * Checks stock using a pessimistic lock and returns the batches to deduct from.
      * @throws ValidationException
@@ -145,29 +162,56 @@ foreach ($requiredIngredients as $itemId => $quantityNeeded) {
      * Creates SaleItem records, deducts from batches, creates logs, and calculates the total sale amount.
      */
   private function processSaleItemsAndDeductions(Sale $sale, array $saleItemsData, array $deductionData, array $requiredIngredients): float
-    {
-        $totalAmount = 0;
-        $logsToInsert = [];
-        $now = now();
-        $deductedQuantities = [];
+{
+    $totalAmount = 0;
+    $logsToInsert = [];
+    $now = now();
+    $deductedQuantities = [];
 
-        // PERFORMANCE REFACTOR: Eager load all products involved in the sale once to prevent N+1 queries.
-        $productIds = array_column($saleItemsData, 'product_id');
-        $products = Product::findMany($productIds)->keyBy('id');
+    // PERFORMANCE REFACTOR: Eager load all products involved in the sale once to prevent N+1 queries.
+    $productIds = array_column($saleItemsData, 'product_id');
+    $products = Product::findMany($productIds)->keyBy('id');
 
-        // First, create all sale item records and calculate the total sale amount.
-        foreach ($saleItemsData as $itemData) {
-            // PERFORMANCE REFACTOR: Use the pre-fetched product collection.
-            if (!$product = $products->get($itemData['product_id'])) {
-                continue; // Failsafe
-            }
-            $totalAmount += $product->price * $itemData['quantity'];
-            $sale->items()->create([
-                'product_id' => $product->id,
-                'quantity' => $itemData['quantity'],
-                'price_at_sale' => $product->price,
-            ]);
+    // First, create all sale item records and calculate the total sale amount.
+    foreach ($saleItemsData as $itemData) {
+        // PERFORMANCE REFACTOR: Use the pre-fetched product collection.
+        if (!$product = $products->get($itemData['product_id'])) {
+            continue; // Failsafe
         }
+        $totalAmount += $product->price * $itemData['quantity'];
+
+        // Debug the modifications data
+        Log::info('Sale Item Modifications:', [
+            'product_id' => $product->id,
+            'modifications' => $itemData['modifications'] ?? null,
+            'raw_request' => $itemData,
+        ]);
+
+        // Ensure modifications are properly formatted as a JSON-serializable array
+        $modifications = null;
+        if (isset($itemData['modifications'])) {
+            $modifications = $itemData['modifications'];
+            // If modifications is a string (already JSON), decode it
+            if (is_string($modifications)) {
+                try {
+                    $modifications = json_decode($modifications, true);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Failed to parse modifications JSON', [
+                        'error' => $e->getMessage(),
+                        'modifications_string' => $modifications
+                    ]);
+                    $modifications = null;
+                }
+            }
+        }
+
+        $sale->items()->create([
+            'product_id' => $product->id,
+            'quantity' => $itemData['quantity'],
+            'price_at_sale' => $product->price,
+            'modifications' => $modifications,
+        ]);
+    }
 
         // Second, process deductions based on the aggregated requirements.
         foreach ($requiredIngredients as $itemId => $quantityToDeduct) {

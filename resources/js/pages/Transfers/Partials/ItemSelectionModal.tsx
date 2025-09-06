@@ -108,11 +108,19 @@ function BatchSelector({ batch, onAddItem, onClose }: { batch: ModalItem; onAddI
         </form>
     );
 }
+
 function PortionSelector({ item, onAddItem, onClose }: { item: ModalItem; onAddItem: (item: CartItem) => void; onClose: () => void }) {
     // DEFINITIVE FIX 2: State is simplified to hold a simple array of portions, not nested batches.
     const [portions, setPortions] = useState<{ id: number; label: string }[]>([]);
     const [selectedPortions, setSelectedPortions] = useState<{ [id: number]: string }>({});
     const [isLoading, setIsLoading] = useState(true);
+
+    // Calculate if all portions are currently selected
+    const allSelected = portions.length > 0 && portions.every(portion =>
+        selectedPortions[portion.id] !== undefined
+    );
+
+    const someSelected = Object.keys(selectedPortions).length > 0;
 
     useEffect(() => {
         if (item) {
@@ -136,6 +144,21 @@ function PortionSelector({ item, onAddItem, onClose }: { item: ModalItem; onAddI
             delete newSelection[portion.id];
         }
         setSelectedPortions(newSelection);
+    };
+
+    // New handler for the "Select All" checkbox
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            // Select all portions
+            const allPortions: { [id: number]: string } = {};
+            portions.forEach(portion => {
+                allPortions[portion.id] = portion.label;
+            });
+            setSelectedPortions(allPortions);
+        } else {
+            // Deselect all portions
+            setSelectedPortions({});
+        }
     };
 
     const handleSubmit = () => {
@@ -176,9 +199,30 @@ function PortionSelector({ item, onAddItem, onClose }: { item: ModalItem; onAddI
                         ))}
                     </div>
                 ) : portions.length > 0 ? (
-                    // DEFINITIVE FIX 4: Simplified rendering logic. No need to map over batches.
                     <div>
                         <h4 className="font-semibold mb-2">Available Portions for Batch #{item.batch_number}</h4>
+
+                        {/* Select All Checkbox */}
+                        <div className="flex items-center space-x-2 mb-4 p-2 border-b border-dashed">
+                            <Checkbox
+                                id="select-all-portions"
+                                checked={allSelected}
+                                onCheckedChange={handleSelectAll}
+                                className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                            />
+                            <label
+                                htmlFor="select-all-portions"
+                                className="font-medium text-sm cursor-pointer flex items-center justify-between w-full"
+                            >
+                                <span>Select All Portions</span>
+                                {someSelected && (
+                                    <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">
+                                        {Object.keys(selectedPortions).length} of {portions.length}
+                                    </span>
+                                )}
+                            </label>
+                        </div>
+
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                             {portions.map((portion) => (
                                 <div
@@ -187,11 +231,12 @@ function PortionSelector({ item, onAddItem, onClose }: { item: ModalItem; onAddI
                                 >
                                     <Checkbox
                                         id={`portion-${portion.id}`}
+                                        checked={!!selectedPortions[portion.id]}
                                         onCheckedChange={(checked) => handlePortionToggle(portion, !!checked)}
                                     />
                                     <label
                                         htmlFor={`portion-${portion.id}`}
-                                        className="text-sm font-medium leading-none"
+                                        className="text-sm font-medium leading-none cursor-pointer w-full"
                                     >
                                         {portion.label}
                                     </label>
@@ -211,7 +256,11 @@ function PortionSelector({ item, onAddItem, onClose }: { item: ModalItem; onAddI
                 <Button type="button" variant="outline" onClick={onClose}>
                     Cancel
                 </Button>
-                <Button type="button" onClick={handleSubmit}>
+                <Button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={Object.keys(selectedPortions).length === 0}
+                >
                     Add {Object.keys(selectedPortions).length} Selected Item(s)
                 </Button>
             </DialogFooter>

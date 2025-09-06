@@ -49,7 +49,7 @@ class EmployeePolicy
      */
     public function delete(User $user, Employee $employee): bool
     {
-        // Only owners can delete employees
+        // Only owners can archive employees
         return $user->isOwner();
     }
 
@@ -58,15 +58,7 @@ class EmployeePolicy
      */
     public function restore(User $user, Employee $employee): bool
     {
-        // Only owners can restore employees
+        // Only owners can restore archived employees
         return $user->isOwner();
-    }
-
-    /**
-     * Determine whether the user can permanently delete the model.
-     */
-    public function forceDelete(User $user, Employee $employee): bool
-    {
-        return false;
     }
 }

@@ -13,7 +13,8 @@ class InventoryCategoryPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->is_admin;
+        // Allow owners and managers to view categories
+        return $user->role === 'owner' || $user->role === 'manager';
     }
 
     /**
@@ -21,7 +22,8 @@ class InventoryCategoryPolicy
      */
     public function view(User $user, InventoryCategory $inventoryCategory): bool
     {
-        return $user->is_admin;
+        // Allow owners and managers to view category details
+        return $user->role === 'owner' || $user->role === 'manager';
     }
 
     /**
@@ -29,7 +31,8 @@ class InventoryCategoryPolicy
      */
     public function create(User $user): bool
     {
-        return $user->is_admin;
+        // Only owners can create categories
+        return $user->role === 'owner';
     }
 
     /**
@@ -37,7 +40,8 @@ class InventoryCategoryPolicy
      */
     public function update(User $user, InventoryCategory $inventoryCategory): bool
     {
-        return $user->is_admin;
+        // Only owners can update categories
+        return $user->role === 'owner';
     }
 
     /**
@@ -45,7 +49,8 @@ class InventoryCategoryPolicy
      */
     public function delete(User $user, InventoryCategory $inventoryCategory): bool
     {
-        return $user->is_admin;
+        // Only owners can delete categories
+        return $user->role === 'owner';
     }
 
     /**
@@ -53,7 +58,8 @@ class InventoryCategoryPolicy
      */
     public function restore(User $user, InventoryCategory $inventoryCategory): bool
     {
-        return false;
+        // Categories don't use soft deletes, but if implemented:
+        return $user->role === 'owner';
     }
 
     /**
@@ -61,6 +67,7 @@ class InventoryCategoryPolicy
      */
     public function forceDelete(User $user, InventoryCategory $inventoryCategory): bool
     {
-        return false;
+        // Not applicable, but if needed:
+        return $user->role === 'owner';
     }
 }

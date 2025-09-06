@@ -16,8 +16,18 @@ use Inertia\Response;
 
 class EmployeeController extends Controller
 {
+    /**
+     * Apply authorization policies to the controller.
+     */
+    public function __construct()
+    {
+        $this->authorizeResource(Employee::class, 'employee');
+    }
+
     public function index(Request $request): Response
     {
+        $this->authorize('viewAny', Employee::class);
+
         $query = Employee::with(['user', 'branch'])->orderBy('first_name')->orderBy('last_name');
 
         $search = $request->input('search');
@@ -39,6 +49,8 @@ class EmployeeController extends Controller
 
     public function create(): Response
     {
+        $this->authorize('create', Employee::class);
+
         return Inertia::render('Employees/Create', [
             'branches' => Branch::orderBy('name')->get(['id', 'name']),
         ]);
@@ -46,6 +58,8 @@ class EmployeeController extends Controller
 
     public function store(StoreEmployeeRequest $request): RedirectResponse
     {
+        $this->authorize('create', Employee::class);
+
         $validated = $request->validated();
 
         DB::transaction(function () use ($validated) {
@@ -75,6 +89,8 @@ class EmployeeController extends Controller
 
     public function edit(Employee $employee): Response
     {
+        $this->authorize('update', $employee);
+
         $employee->load(['user', 'branch']);
         return Inertia::render('Employees/Edit', [
             'employee' => $employee,
@@ -84,6 +100,8 @@ class EmployeeController extends Controller
 
     public function update(UpdateEmployeeRequest $request, Employee $employee): RedirectResponse
     {
+        $this->authorize('update', $employee);
+
         $validated = $request->validated();
 
         DB::transaction(function () use ($validated, $employee) {
@@ -127,6 +145,8 @@ class EmployeeController extends Controller
 
     public function deactivate(Employee $employee): RedirectResponse
     {
+        $this->authorize('update', $employee);
+
         $employee->update(['is_active' => !$employee->is_active]);
         $status = $employee->is_active ? 'activated' : 'deactivated';
         return redirect()->back()->with('success', "Employee has been {$status}.");
@@ -134,6 +154,8 @@ class EmployeeController extends Controller
 
     public function destroy(Employee $employee): RedirectResponse
     {
+        $this->authorize('delete', $employee);
+
         // This is now for archiving (soft delete)
         $employee->delete();
         return redirect()->route('employees.index')->with('success', 'Employee archived successfully.');
@@ -141,6 +163,8 @@ class EmployeeController extends Controller
 
     public function archived(Request $request): Response
     {
+        $this->authorize('viewAny', Employee::class);
+
         $query = Employee::onlyTrashed()->with(['user', 'branch']);
 
         $search = $request->input('search');
@@ -159,6 +183,8 @@ class EmployeeController extends Controller
 
     public function restore(Employee $employee): RedirectResponse
     {
+        $this->authorize('restore', $employee);
+
         $employee->restore();
         return redirect()->route('employees.archived')->with('success', 'Employee restored successfully.');
     }

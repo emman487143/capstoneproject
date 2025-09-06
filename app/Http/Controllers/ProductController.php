@@ -122,4 +122,24 @@ class ProductController extends Controller
 
         return redirect()->route('products.index')->with('success', 'Product deleted successfully.');
     }
+  public function getIngredients(Product $product)
+{
+    try {
+        // Get inventory items from the product's ingredients relation more directly
+        $ingredients = $product->ingredients()
+            ->select('inventory_items.id', 'inventory_items.name')
+            ->get();
+
+        return response()->json($ingredients);
+    } catch (\Exception $e) {
+        // Log the error for debugging
+        \Illuminate\Support\Facades\Log::error('Failed to fetch product ingredients: ' . $e->getMessage(), [
+            'product_id' => $product->id,
+            'exception' => $e
+        ]);
+
+        // Return a proper error response
+        return response()->json(['error' => 'Failed to load ingredients'], 500);
+    }
+}
 }

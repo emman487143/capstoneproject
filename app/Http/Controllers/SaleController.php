@@ -144,14 +144,23 @@ class SaleController extends Controller
             'recentProducts' => $recentProducts,
         ]);
     }
-      public function show(Sale $sale): Response
-    {
-        $sale->load(['items.product', 'user', 'branch']);
+    public function show(Sale $sale): Response
+{
+    // Use nested eager loading with select to ensure modifications are included
+    $sale->load([
+        'items' => function($query) {
+            $query->select(['id', 'sale_id', 'product_id', 'quantity', 'price_at_sale', 'modifications']);
+        },
+        'items.product',
+        'user',
+        'branch'
+    ]);
 
-        return Inertia::render('Sales/Show', [
-            'sale' => $sale,
-        ]);
-    }
+
+    return Inertia::render('Sales/Show', [
+        'sale' => $sale,
+    ]);
+}
     /**
      * Store a newly created resource in storage.
      */

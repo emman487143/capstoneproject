@@ -12,46 +12,55 @@ class BranchPolicy
 
     /**
      * Determine whether the user can view any models.
-     * Only admins can view the main branch list.
+     * Only owners can view the branch list.
      */
     public function viewAny(User $user): bool
     {
-        return $user->is_admin;
+        return $user->role === 'owner';
     }
 
     /**
      * Determine whether the user can view the model.
-     * An admin can view any branch.
-     * An employee can only view their own branch.
-     * This is the method that was missing, causing the 500 error.
+     * Only owners can view branch details.
      */
-  public function view(User $user, Branch $branch): bool
-{
-    // Only owners can view branch details
-    return $user->isOwner();
-}
+    public function view(User $user, Branch $branch): bool
+    {
+        return $user->role === 'owner';
+    }
 
     /**
      * Determine whether the user can create models.
+     * Only owners can create branches.
      */
     public function create(User $user): bool
     {
-        return $user->is_admin;
+        return $user->role === 'owner';
     }
 
     /**
      * Determine whether the user can update the model.
+     * Only owners can update branches.
      */
     public function update(User $user, Branch $branch): bool
     {
-        return $user->is_admin;
+        return $user->role === 'owner';
     }
 
     /**
      * Determine whether the user can delete the model.
+     * Only owners can delete/archive branches.
      */
     public function delete(User $user, Branch $branch): bool
     {
-        return $user->is_admin;
+        return $user->role === 'owner';
+    }
+
+    /**
+     * Determine whether the user can restore archived branches.
+     * Only owners can restore branches.
+     */
+    public function restore(User $user, Branch $branch): bool
+    {
+        return $user->role === 'owner';
     }
 }

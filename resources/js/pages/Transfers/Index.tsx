@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { Auth, BreadcrumbItem, PaginatedResponse, Transfer } from '@/types';
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage, usePoll } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -50,6 +50,16 @@ export default function Index({ transfers }: IndexPageProps) {
         }
     };
 
+    usePoll(10000, {
+            only: ['transfers'],
+      onStart() {
+          console.log('checking update')
+      },
+      onFinish() {
+          console.log('finished checking')
+      }
+    })
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Stock Transfers" />
@@ -96,8 +106,6 @@ export default function Index({ transfers }: IndexPageProps) {
                                             <TableHead>ID</TableHead>
                                             <TableHead>From</TableHead>
                                             <TableHead>To</TableHead>
-                                            <TableHead>Sent By</TableHead>
-                                            <TableHead>Date Sent</TableHead>
                                             <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -116,8 +124,6 @@ export default function Index({ transfers }: IndexPageProps) {
                                                     <TableCell className="font-mono text-xs">#{transfer.id}</TableCell>
                                                     <TableCell>{transfer.source_branch.name}</TableCell>
                                                     <TableCell>{transfer.destination_branch.name}</TableCell>
-                                                    <TableCell>{transfer.sending_user.name}</TableCell>
-                                                    <TableCell>{format(new Date(transfer.sent_at), 'MMM dd, yyyy')}</TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="flex justify-end gap-2">
                                                             {/* Show receive button for destination branch users */}
@@ -181,10 +187,6 @@ export default function Index({ transfers }: IndexPageProps) {
                                                     <p className="font-medium">{transfer.destination_branch.name}</p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-muted-foreground">Sent By</p>
-                                                    <p className="font-medium">{transfer.sending_user.name}</p>
-                                                </div>
-                                                <div>
                                                     <p className="text-muted-foreground">Date</p>
                                                     <p className="font-medium">{format(new Date(transfer.sent_at), 'MMM dd, yyyy')}</p>
                                                 </div>
@@ -242,7 +244,6 @@ export default function Index({ transfers }: IndexPageProps) {
                                         <TableHead>Status</TableHead>
                                         <TableHead>From</TableHead>
                                         <TableHead>To</TableHead>
-                                        <TableHead>Sent By</TableHead>
                                         <TableHead className="text-right">Date Sent</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -260,7 +261,6 @@ export default function Index({ transfers }: IndexPageProps) {
                                                 </TableCell>
                                                 <TableCell>{transfer.source_branch.name}</TableCell>
                                                 <TableCell>{transfer.destination_branch.name}</TableCell>
-                                                <TableCell>{transfer.sending_user.name}</TableCell>
                                                 <TableCell className="text-right">
                                                     {format(new Date(transfer.sent_at), 'MMM dd, yyyy')}
                                                 </TableCell>
@@ -301,10 +301,6 @@ export default function Index({ transfers }: IndexPageProps) {
                                             <div>
                                                 <p className="text-muted-foreground">To</p>
                                                 <p className="font-medium">{transfer.destination_branch.name}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-muted-foreground">Sent By</p>
-                                                <p className="font-medium">{transfer.sending_user.name}</p>
                                             </div>
                                             <div>
                                                 <p className="text-muted-foreground">Date</p>

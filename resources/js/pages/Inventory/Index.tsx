@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePoll } from '@inertiajs/react'; // Added usePoll import
 import { useDebouncedCallback } from 'use-debounce';
 import {
     AlertTriangle,
@@ -101,6 +101,19 @@ export default function Index({
         category: filters.category || '',
         status: filters.status || '',
     });
+
+    // Add polling for inventory data every 30 seconds
+    usePoll(10000, {
+        only: ['items', 'stats'],
+  onStart() {
+      console.log('checking update')
+  },
+  onFinish() {
+      console.log('finished checking')
+  }
+})
+
+
 
     useEffect(() => {
         setActiveFilters({

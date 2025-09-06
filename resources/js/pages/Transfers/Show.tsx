@@ -156,25 +156,44 @@ export default function Show({ transfer, can }: ShowPageProps) {
                         <InfoField label="Sent By" value={transfer.sending_user.name} />
                         <InfoField label="Date Sent" value={format(new Date(transfer.sent_at), 'MMM dd, yyyy p')} />
 
-                        <InfoField
-                            label="Received By"
-                            value={transfer.receiving_user?.name ?? 'Pending'}
-                        />
-                        <InfoField
-                            label="Date Received"
-                            value={formattedReceivedDate}
-                            badge={!transfer.received_at && (
-                                <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">
-                                    Pending
-                                </Badge>
-                            )}
-                        />
-
-                        {transfer.status === 'cancelled' && (
-                            <InfoField
-                                label="Cancelled By"
-                                value={transferData.cancelled_by?.name ?? 'System'}
-                            />
+                        {transfer.status === 'cancelled' ? (
+                            <>
+                                <InfoField
+                                    label="Cancelled By"
+                                    value={transfer.receiving_user?.name ?? 'System'}
+                                />
+                                <InfoField
+                                    label="Date Cancelled"
+                                    value={transfer.received_at ? format(new Date(transfer.received_at), 'MMM dd, yyyy p') : 'N/A'}
+                                />
+                            </>
+                        ) : transfer.status === 'rejected' ? (
+                            <>
+                                <InfoField
+                                    label="Rejected By"
+                                    value={transfer.receiving_user?.name ?? 'System'}
+                                />
+                                <InfoField
+                                    label="Date Rejected"
+                                    value={transfer.received_at ? format(new Date(transfer.received_at), 'MMM dd, yyyy p') : 'N/A'}
+                                />
+                            </>
+                        ) : (
+                            <>
+                                <InfoField
+                                    label="Received By"
+                                    value={transfer.receiving_user?.name ?? 'Pending'}
+                                />
+                                <InfoField
+                                    label="Date Received"
+                                    value={formattedReceivedDate}
+                                    badge={!transfer.received_at && transfer.status === 'pending' && (
+                                        <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">
+                                            Pending
+                                        </Badge>
+                                    )}
+                                />
+                            </>
                         )}
 
                         <div className="col-span-1 sm:col-span-2 lg:col-span-4">
@@ -229,10 +248,13 @@ export default function Show({ transfer, can }: ShowPageProps) {
                                         <AlertTriangle className="mr-2 h-4 w-4" />
                                         Reject Transfer
                                     </Button>
-                                    <Link href={route('inventory.transfers.receive', transfer.id)} className="w-full sm:w-auto">
-                                        <PackageCheck className="mr-2 h-4 w-4" />
-                                        Receive Items
-                                    </Link>
+
+                                    <Button asChild variant="default" className="w-full sm:w-auto">
+    <Link href={route('inventory.transfers.receive', transfer.id)}>
+        <PackageCheck className="mr-2 h-4 w-4" />
+        Receive Items
+    </Link>
+</Button>
 
                                 </div>
                             )}
@@ -263,8 +285,8 @@ export default function Show({ transfer, can }: ShowPageProps) {
                                             <TableCell>{item.inventory_item.name}</TableCell>
                                             <TableCell>#{item.inventory_batch.batch_number}</TableCell>
                                             <TableCell className="font-mono text-xs">
-                                                {item.inventory_batch_portion?.label ?? 'N/A'}
-                                            </TableCell>
+    {item.inventory_batch_portion?.label || item.inventory_batch.label || `#${item.inventory_batch.batch_number}`}
+</TableCell>
                                             <TableCell className="text-right">
                                                {`${item.quantity} ${item.inventory_item.unit}`}
                                             </TableCell>
@@ -287,7 +309,7 @@ export default function Show({ transfer, can }: ShowPageProps) {
                                         <div>
                                             <p className="text-muted-foreground">Portion</p>
                                             <p className="font-mono text-xs font-medium">
-                                                {item.inventory_batch_portion?.label ?? 'N/A'}
+                                                {item.inventory_batch_portion?.label || item.inventory_batch.label || `#${item.inventory_batch.batch_number}`}
                                             </p>
                                         </div>
                                         <div className="col-span-2">

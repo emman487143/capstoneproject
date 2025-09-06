@@ -28,7 +28,7 @@ enum LogAction: string
 
     // New restoration action
     case PORTION_RESTORED = 'portion_restored';
-
+case QUANTITY_RESTORED = 'quantity_restored';
     /**
      * Determines if this action requires admin permission.
      */

@@ -38,6 +38,10 @@ export default function LogDetail({ action, details, rawDetails }: LogDetailProp
     const hasPortion = !!portionMatch || metadata.some(item => item.label === 'Portion');
     const portionInfo = metadata.find(item => item.label === 'Portion');
 
+    // Check if this is a batch log by examining the metadata
+    const hasBatchLabel = metadata.some(item => item.label === 'Batch' && !item.value.startsWith('#'));
+    const batchInfo = metadata.find(item => item.label === 'Batch');
+
     // Get quantity information from rawDetails if formatted details don't have it
     let effectiveQuantityInfo = quantityInfo;
 
@@ -126,6 +130,13 @@ export default function LogDetail({ action, details, rawDetails }: LogDetailProp
             {portionInfo && (
                 <div className="text-sm text-primary-600 dark:text-primary-400 font-medium">
                     {portionInfo.value}
+                </div>
+            )}
+
+            {/* Batch info - if applicable and not a portion */}
+            {!hasPortion && hasBatchLabel && batchInfo && (
+                <div className="text-sm font-mono text-gray-600 dark:text-gray-400">
+                    {batchInfo.value}
                 </div>
             )}
 

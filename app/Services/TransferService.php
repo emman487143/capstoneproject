@@ -322,19 +322,28 @@ $portion->batch->decrement('remaining_quantity');
                 'transfer' => 'This transfer cannot be cancelled as it is already completed or cancelled.',
             ]);
         }
- return DB::transaction(function () use ($transfer, $cancellingUser) {
+
+        return DB::transaction(function () use ($transfer, $cancellingUser) {
             foreach ($transfer->items as $transferItem) {
                 $logDetails = [
                     'transfer_id' => $transfer->id,
                 ];
 
                 if ($transferItem->inventory_batch_portion_id) {
-                    // Eager load the batch relationship.
-                    $portion = InventoryBatchPortion::with('batch')->lockForUpdate()->find($transferItem->inventory_batch_portion_id);
-                    if ($portion && $portion->status === PortionStatus::IN_TRANSIT->value) {
+                    // First lock the batch to prevent concurrent operations - this is the key fix
+                    $batch = InventoryBatch::lockForUpdate()->find($transferItem->inventory_batch_id);
+                    if (!$batch) continue;
+
+                    // Then get the portion with batch relationship
+                    $portion = InventoryBatchPortion::with('batch')
+                        ->where('id', $transferItem->inventory_batch_portion_id)
+                        ->where('status', PortionStatus::IN_TRANSIT->value)
+                        ->first();
+
+                    if ($portion) {
                         $portion->update(['status' => PortionStatus::UNUSED]);
-                        // CRITICAL FIX: Increment the parent batch's quantity upon cancellation.
-                        $portion->batch->increment('remaining_quantity');
+                        // Use the locked batch reference to ensure the increment happens
+                        $batch->increment('remaining_quantity', 1);
                         $logDetails['quantity_change'] = 1;
                         $logDetails['batch_portion_id'] = $portion->id;
                     }

@@ -80,10 +80,18 @@ class LogDetailFormatter
 
                 // Add batch details
                 if ($log->batch) {
-                    $formatted['metadata'][] = [
-                        'label' => 'Batch #',
-                        'value' => $log->batch->batch_number
-                    ];
+                    // Add label if available, otherwise fallback to batch number
+                    if ($log->batch->label) {
+                        $formatted['metadata'][] = [
+                            'label' => 'Batch',
+                            'value' => $log->batch->label
+                        ];
+                    } else {
+                        $formatted['metadata'][] = [
+                            'label' => 'Batch #',
+                            'value' => $log->batch->batch_number
+                        ];
+                    }
 
                     if ($log->batch->source) {
                         $formatted['metadata'][] = [
@@ -135,12 +143,19 @@ class LogDetailFormatter
                         $formatted['has_quantity'] = false;
                     }
 
-                    // Add batch number as metadata
+                    // Add batch label as metadata if available
                     if ($log->batch) {
-                        $formatted['metadata'][] = [
-                            'label' => 'Batch',
-                            'value' => "#{$log->batch->batch_number}"
-                        ];
+                        if ($log->batch->label) {
+                            $formatted['metadata'][] = [
+                                'label' => 'Batch',
+                                'value' => $log->batch->label
+                            ];
+                        } else {
+                            $formatted['metadata'][] = [
+                                'label' => 'Batch',
+                                'value' => "#{$log->batch->batch_number}"
+                            ];
+                        }
                     }
                 }
 
@@ -267,6 +282,33 @@ class LogDetailFormatter
                 $formatted['quantityInfo'] = "+1 {$itemUnit}";
                 break;
 
+            case LogAction::QUANTITY_RESTORED->value:
+                $formatted['title'] = 'Quantity Restored';
+                $formatted['description'] = sprintf(
+                    '%s restored %.2f %s to this batch.',
+                    $log->user->name,
+                    $log->details['quantity_restored'],
+                    $log->batch->inventoryItem->unit
+                );
+
+                // Add reason as metadata
+                $formatted['metadata'][] = [
+                    'label' => 'Reason',
+                    'value' => $log->details['reason'] ?? 'Not specified'
+                ];
+
+                // Add details about original adjustments
+                if (isset($log->details['original_adjustments']) && count($log->details['original_adjustments']) > 0) {
+                    $formatted['metadata'][] = [
+                        'label' => 'Restored From',
+                        'value' => count($log->details['original_adjustments']) . ' previous adjustments'
+                    ];
+                }
+
+                $formatted['icon'] = 'refresh-cw';
+                $formatted['iconColor'] = 'text-green-500';
+                break;
+
             default:
                 $formatted['title'] = $this->formatActionName($log->action);
                 $formatted['description'] = $this->generateFallbackDescription($log, $itemName);
@@ -292,7 +334,12 @@ private function formatDetailedAdjustment(array &$formatted, InventoryLog $log, 
     $actionType = str_replace('adjustment_', '', $actionString);
 
     // Get batch info
-    $batchInfo = $log->batch ? "(Batch #{$log->batch->batch_number})" : '';
+    $batchInfo = '';
+    if ($log->batch) {
+        $batchInfo = $log->batch->label
+            ? "({$log->batch->label})"
+            : "(Batch #{$log->batch->batch_number})";
+    }
 
     // CRITICAL FIX: For portion-based adjustments (like spoilage adjustments)
     if ($log->portion || isset($details['portion_label'])) {

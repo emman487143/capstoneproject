@@ -19,6 +19,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Http\JsonResponse;
 use App\Http\Requests\RestoreQuantityRequest;
+use App\Models\InventoryLog;
 
 class InventoryBatchController extends Controller
 {
@@ -69,9 +70,22 @@ class InventoryBatchController extends Controller
      */
     public function create(Request $request): Response|RedirectResponse
     {
-        $this->authorize('create', InventoryBatch::class);
+
 
         $user = $request->user();
+        $branchId = null;
+
+    // Determine branch context first, then authorize with it
+    if (!$user->is_admin && $user->employee) {
+        // Staff always use their assigned branch
+        $branchId = $user->employee->branch_id;
+    } elseif ($request->has('branch_id')) {
+        // Admin with branch context from request
+        $branchId = $request->input('branch_id');
+    }
+
+    // Pass the branch ID to the authorize method
+    $this->authorize('create', [InventoryBatch::class, $branchId]);
         $preselectedItem = null;
         $preselectedBranch = null;
         $isBranchLocked = false;
@@ -170,11 +184,78 @@ class InventoryBatchController extends Controller
     public function show(InventoryBatch $batch)
     {
         $this->authorize('view', $batch);
+
+        // Load batch relationships
         $batch->load(['inventoryItem.category', 'branch', 'portions']);
 
+        // Get all negative adjustments
+        $negativeAdjustments = $batch->negative_adjustments()
+            ->with('user')
+            ->latest()
+            ->get();
+
+        // Get all restore logs for this batch to track what's been restored
+        $restoreLogs = InventoryLog::where('inventory_batch_id', $batch->id)
+            ->where('action', LogAction::QUANTITY_RESTORED)
+            ->get();
+
+        // Track how much has been restored for each adjustment
+        $restoredQuantities = [];
+        foreach ($restoreLogs as $log) {
+            if (isset($log->details['original_adjustments']) && is_array($log->details['original_adjustments'])) {
+                foreach ($log->details['original_adjustments'] as $adjustmentId => $quantity) {
+                    if (!isset($restoredQuantities[$adjustmentId])) {
+                        $restoredQuantities[$adjustmentId] = 0;
+                    }
+                    $restoredQuantities[$adjustmentId] += (float)$quantity;
+                }
+            }
+        }
+
+        // Filter adjustments to only include those with remaining quantity
+        $availableAdjustments = $negativeAdjustments->filter(function($adjustment) use ($restoredQuantities) {
+            $originalQuantity = $this->getAdjustmentQuantity($adjustment);
+            $restoredQuantity = $restoredQuantities[$adjustment->id] ?? 0;
+
+            // Only include if there's still quantity available to restore
+            return $restoredQuantity < $originalQuantity;
+        })->values();
+
+        // Add a remaining_quantity property to each adjustment
+        foreach ($availableAdjustments as $adjustment) {
+            $originalQuantity = $this->getAdjustmentQuantity($adjustment);
+            $restoredQuantity = $restoredQuantities[$adjustment->id] ?? 0;
+            $adjustment->remaining_quantity = $originalQuantity - $restoredQuantity;
+        }
+
         return Inertia::render('Inventory/Batches/Show', [
-            'batch' => $batch,
+            'batch' => array_merge($batch->toArray(), [
+                'negative_adjustments' => $availableAdjustments
+            ]),
         ]);
+    }
+
+    /**
+     * Get the quantity from an adjustment log regardless of format.
+     */
+    private function getAdjustmentQuantity($adjustment)
+    {
+        if (isset($adjustment->details['quantity_change'])) {
+            return abs($adjustment->details['quantity_change']);
+        }
+
+        if (isset($adjustment->details['quantity_adjusted'])) {
+            return abs($adjustment->details['quantity_adjusted']);
+        }
+
+        if (isset($adjustment->details['original_quantity']) && isset($adjustment->details['new_quantity'])) {
+            return abs(
+                floatval($adjustment->details['original_quantity']) -
+                floatval($adjustment->details['new_quantity'])
+            );
+        }
+
+        return 0;
     }
 
     /**
@@ -255,6 +336,47 @@ public function correctCount(CorrectBatchCountRequest $request, InventoryBatch $
     } catch (\Exception $e) {
         Log::error('Batch count correction failed: ' . $e->getMessage());
         return back()->withErrors(['error' => 'Failed to correct batch count: ' . $e->getMessage()]);
+    }
+}
+
+public function restoreQuantity(Request $request, InventoryBatch $batch)
+{
+    $this->authorize('update', $batch);
+
+    // Add debugging
+    Log::debug('Restore quantity request', [
+        'batch_id' => $batch->id,
+        'adjustments' => $request->input('adjustments'),
+        'reason' => $request->input('reason')
+    ]);
+
+    $validated = $request->validate([
+        'adjustments' => 'required|array',
+        'adjustments.*' => 'required|numeric|min:0.01',
+        'reason' => 'required|string|max:255',
+    ]);
+
+    try {
+        $result = app(InventoryService::class)->restoreQuantity(
+            $batch,
+            $validated['adjustments'],
+            $validated['reason'],
+            $request->user()
+        );
+
+        Log::debug('Quantity restored successfully', [
+            'batch_id' => $batch->id,
+            'total_restored' => array_sum($validated['adjustments'])
+        ]);
+
+        return back()->with('success', 'Quantity restored successfully.');
+    } catch (\Exception $e) {
+        Log::error('Failed to restore quantity: ' . $e->getMessage(), [
+            'batch_id' => $batch->id,
+            'exception' => $e
+        ]);
+
+        return back()->with('error', 'Failed to restore quantity: ' . $e->getMessage());
     }
 }
 }

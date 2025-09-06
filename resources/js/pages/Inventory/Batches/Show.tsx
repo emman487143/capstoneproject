@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CorrectCountModal } from './Partials/CorrectCountModal';
 import { RestorePortionModal } from './Partials/RestorePortionModal';
+import RestoreQuantityModal from './Partials/RestoreQuantityModal';
 import { formatCurrency } from '@/lib/utils';
 
 interface ShowPageProps extends SharedData {
@@ -22,6 +23,7 @@ interface ShowPageProps extends SharedData {
 export default function Show({ batch }: ShowPageProps) {
     const [isCorrectCountModalOpen, setIsCorrectCountModalOpen] = useState(false);
     const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+    const [isRestoreQuantityModalOpen, setIsRestoreQuantityModalOpen] = useState(false);
 
     // Calculate total value for the batch (current remaining value)
     const calculateTotalValue = (batch: InventoryBatch) => {
@@ -94,6 +96,10 @@ export default function Show({ batch }: ShowPageProps) {
         printWindow.document.close();
     };
 
+    const handleRestoreQuantity = () => {
+        setIsRestoreQuantityModalOpen(true);
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Batch #${batch.batch_number}`} />
@@ -116,7 +122,7 @@ export default function Show({ batch }: ShowPageProps) {
                             Correct Count
                         </Button>
 
-                        {batch.inventory_item.tracking_type === 'by_portion' && (
+                        {batch.inventory_item.tracking_type === 'by_portion' ? (
                             <>
                                 <Button variant="outline" onClick={() => setIsRestoreModalOpen(true)}>
                                     <RefreshCw className="mr-2 h-4 w-4" />
@@ -125,6 +131,17 @@ export default function Show({ batch }: ShowPageProps) {
                                 <Button variant="outline" onClick={handlePrintLabels}>
                                     <Printer className="mr-2 h-4 w-4" />
                                     Print Portion Labels
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <Button variant="outline" onClick={handleRestoreQuantity}>
+                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                    Restore Quantity
+                                </Button>
+                                <Button variant="outline" onClick={handlePrintLabels}>
+                                    <Printer className="mr-2 h-4 w-4" />
+                                    Print Batch Label
                                 </Button>
                             </>
                         )}
@@ -192,6 +209,12 @@ export default function Show({ batch }: ShowPageProps) {
                                 {batch.expiration_date ? format(new Date(batch.expiration_date), 'PPP') : 'N/A'}
                             </p>
                         </div>
+                        {batch.inventory_item.tracking_type === 'by_measure' && (
+                            <div>
+                                <p className="text-muted-foreground">Batch Label</p>
+                                <p className="font-mono font-medium">{batch.label || `#${batch.batch_number}`}</p>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -218,6 +241,16 @@ export default function Show({ batch }: ShowPageProps) {
                             )}
                         </CardContent>
                     </Card>
+                )}
+
+                {/* Restore Quantity Modal */}
+                {isRestoreQuantityModalOpen && (
+                    <RestoreQuantityModal
+                        open={isRestoreQuantityModalOpen}
+                        onOpenChange={setIsRestoreQuantityModalOpen}
+                        batchId={batch.id}
+                        negativeAdjustments={batch.negative_adjustments || []}
+                    />
                 )}
 
                 <RestorePortionModal

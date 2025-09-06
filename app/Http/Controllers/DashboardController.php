@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\Inventory\LogAction;
 use App\Enums\Transfers\TransferStatus;
 use App\Models\Branch;
+use App\Models\Dashboard;
 use App\Models\InventoryBatchPortion;
 use App\Models\InventoryItem;
 use App\Models\InventoryLog;
@@ -20,21 +21,41 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Http\RedirectResponse;
+
+use function Laravel\Prompts\alert;
 
 class DashboardController extends Controller
 {
+    /**
+     * Create a new controller instance.
+     */
+    public function __construct()
+    {
+        // Ensure the user has access to the dashboard before proceeding
+
+    }
+
     /**
      * Handle the incoming request.
      */
     public function __invoke(Request $request): Response
     {
+
+
+
         /** @var User $user */
         $user = Auth::user();
         $branches = collect();
         $currentBranch = null;
         $selectedBranchId = null;
 
-        if ($user->is_admin) {
+        if($user->role === 'staff') {
+           dd("Access denied. Staff members do not have access to the dashboard.");
+        }
+
+        // Only owners can see all branches, managers can only see their assigned branch
+        if ($user->role === 'owner') {
             $branches = Branch::orderBy('name')->get();
             $requestedBranchId = $request->input('branch');
 
@@ -46,6 +67,7 @@ class DashboardController extends Controller
                 $selectedBranchId = $currentBranch->id;
             }
         } else {
+            // Manager role - restricted to their branch
             if ($user->branch) {
                 $currentBranch = $user->branch;
                 $selectedBranchId = $currentBranch->id;

@@ -59,6 +59,8 @@ Route::middleware('auth')->group(function () {
  Route::post('inventory/batches/{batch}/correct-count', [InventoryBatchController::class, 'correctCount'])
     ->name('batches.correct-count')
     ->middleware(['auth']);
+    Route::post('/batches/{batch}/restore-quantity', [InventoryBatchController::class, 'restoreQuantity'])
+    ->name('batches.restore-quantity');
     Route::get('batches/{batch}/portions/restore', [InventoryBatchPortionController::class, 'restoreForm'])
             ->name('batches.portions.restore-form');
         Route::post('batches/{batch}/portions/restore', [InventoryBatchPortionController::class, 'restore'])
@@ -80,7 +82,8 @@ Route::resource('products', ProductController::class);
     // Settings & Profile Routes are in their own files
     Route::post('/sales/check-stock', [SaleController::class, 'checkStock'])->name('sales.check-stock');
     Route::resource('sales', SaleController::class);
-
+Route::get('/products/{product}/ingredients', [ProductController::class, 'getIngredients'])
+    ->name('products.ingredients');
 
 
 

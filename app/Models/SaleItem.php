@@ -17,6 +17,7 @@ protected $guarded = ['id'];
         'product_id',
         'quantity',
         'price_at_sale',
+        'modifications',
     ];
 
    /**
@@ -24,10 +25,10 @@ protected $guarded = ['id'];
      *
      * @var array
      */
-    protected $casts = [
-        'price_at_sale' => 'float',
-    ];
-
+   protected $casts = [
+    'price_at_sale' => 'float',
+    'modifications' => 'array', // Add this line
+];
     public function sale(): BelongsTo
     {
         return $this->belongsTo(Sale::class);

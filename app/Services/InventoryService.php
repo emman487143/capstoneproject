@@ -105,16 +105,23 @@ class InventoryService
         $inventoryItem = InventoryItem::with('category')->findOrFail($data['inventory_item_id']);
 
         // Ensure that portion-tracked items have whole number quantities.
-       if ($inventoryItem->tracking_type === TrackingType::BY_PORTION && fmod((float)$data['quantity_received'], 1) !== 0.0) {
-            throw new InvalidArgumentException('Portion-tracked items must have a whole number quantity.');
+        if ($inventoryItem->tracking_type === TrackingType::BY_PORTION && fmod((float)$data['quantity_received'], 1) !== 0.0) {
+             throw new InvalidArgumentException('Portion-tracked items must have a whole number quantity.');
         }
 
-       return DB::transaction(function () use ($data, $inventoryItem) {
+        return DB::transaction(function () use ($data, $inventoryItem) {
             $batchNumber = $this->generateNextBatchNumber($inventoryItem->id, $data['branch_id']);
+
+            // Get branch for label generation
+            $branch = Branch::findOrFail($data['branch_id']);
+
+            // Generate the batch label
+            $label = $this->generateBatchLabel($inventoryItem, $branch, $batchNumber);
 
             $batch = InventoryBatch::create([
                 'inventory_item_id' => $inventoryItem->id,
-                'batch_number' => $batchNumber, // Use auto-generated sequential number
+                'batch_number' => $batchNumber,
+                'label' => $label, // Add the label to the batch
                 'branch_id' => $data['branch_id'],
                 'received_at' => $data['received_at'] ?? now(),
                 'source' => $data['source'] ?? null,
@@ -122,10 +129,9 @@ class InventoryService
                 'remaining_quantity' => $data['quantity_received'],
                 'unit_cost' => $data['unit_cost'] ?? 0,
                 'expiration_date' => $data['expiration_date'] ?? null,
-                // REMOVED: notes and manufacturing_date are not needed.
             ]);
 
-       if ($inventoryItem->tracking_type === TrackingType::BY_PORTION) {
+            if ($inventoryItem->tracking_type === TrackingType::BY_PORTION) {
                 $this->createPortionsForBatch($batch, (int)$data['quantity_received']);
             }
 
@@ -133,6 +139,7 @@ class InventoryService
             $logDetails = [
                 'quantity_received' => $batch->quantity_received,
                 'unit' => $inventoryItem->unit,
+                'batch_label' => $label, // Add batch label to the log
             ];
 
             if ($inventoryItem->tracking_type === TrackingType::BY_PORTION) {
@@ -231,6 +238,14 @@ class InventoryService
      */
     private function generatePortionLabel(InventoryBatch $batch, int $portionNumber): string
     {
+        // If batch has a label, use it as a prefix
+        if ($batch->label) {
+            // Pad the portion number for consistency (e.g., 1 -> 01)
+            $portionNumPadded = str_pad((string)$portionNumber, 2, '0', STR_PAD_LEFT);
+            return "{$batch->label}-{$portionNumPadded}";
+        }
+
+        // Fallback to the original implementation if no batch label exists
         // Abbreviate Item Name (e.g., "Pork Broth" -> "PB")
         $itemCode = $batch->inventoryItem->code;
 
@@ -540,6 +555,116 @@ public function restorePortions(array $portionIds, string $reason, User $user): 
                 ]);
             }
         }
+    });
+}
+
+/**
+ * Generates a unique, human-readable label for a batch.
+ * Example: PB-CB-B1 (Pork Broth, Cabanatuan, Batch 1)
+ *
+ * @param InventoryItem $item
+ * @param Branch $branch
+ * @param int $batchNumber
+ * @return string
+ */
+private function generateBatchLabel(InventoryItem $item, Branch $branch, int $batchNumber): string
+{
+    // Use the item's code (e.g., "PB" for "Pork Broth")
+    $itemCode = $item->code;
+
+    // Use the branch's code (e.g., "CB" for Cabanatuan)
+    $branchCode = $branch->code;
+
+    // Use the sequential batch number (e.g., 1, 2, 3)
+    return "{$itemCode}-{$branchCode}-B{$batchNumber}";
+}
+/**
+ * Restores quantity to a batch from previous negative adjustments.
+ *
+ * @param InventoryBatch $batch The batch to restore quantity to
+ * @param array $adjustments Map of log IDs to quantities to restore
+ * @param string $reason The reason for restoration
+ * @param User $user The user performing the restoration
+ * @return InventoryBatch The updated batch
+ * @throws \Exception
+ */
+public function restoreQuantity(InventoryBatch $batch, array $adjustments, string $reason, User $user): InventoryBatch
+{
+    // Validate that all adjustment IDs exist and are valid for restoration
+    $adjustmentIds = array_keys($adjustments);
+    $validLogs = InventoryLog::whereIn('id', $adjustmentIds)
+        ->where('inventory_batch_id', $batch->id)
+        ->whereIn('action', [
+            LogAction::ADJUSTMENT_SPOILAGE->value,
+            LogAction::ADJUSTMENT_WASTE->value,
+            LogAction::ADJUSTMENT_THEFT->value,
+            LogAction::ADJUSTMENT_OTHER->value,
+        ])
+        ->get()
+        ->keyBy('id');
+
+    // Verify all requested adjustments exist
+    if (count($validLogs) !== count($adjustmentIds)) {
+        throw new \Exception('One or more selected adjustments are invalid.');
+    }
+
+    // Process the restoration within a transaction
+    return DB::transaction(function () use ($batch, $adjustments, $reason, $user, $validLogs) {
+        $totalQuantity = 0;
+
+        // Calculate the total quantity to restore and validate each adjustment
+        foreach ($adjustments as $logId => $quantityToRestore) {
+            $log = $validLogs->get($logId);
+
+            if (!$log) {
+                throw new \Exception("Invalid adjustment log ID: {$logId}");
+            }
+
+            // NEW CODE: Extract the original quantity using multiple potential formats
+            $originalQuantity = 0;
+
+            if (isset($log->details['quantity_change'])) {
+                $originalQuantity = abs($log->details['quantity_change']);
+            }
+            elseif (isset($log->details['quantity_adjusted'])) {
+                $originalQuantity = abs($log->details['quantity_adjusted']);
+            }
+            elseif (isset($log->details['original_quantity']) && isset($log->details['new_quantity'])) {
+                $originalQuantity = abs(
+                    floatval($log->details['original_quantity']) -
+                    floatval($log->details['new_quantity'])
+                );
+            }
+
+            // Ensure we have a valid quantity to restore
+            if ($originalQuantity <= 0) {
+                throw new \Exception("Could not determine valid quantity to restore for log ID: {$logId}");
+            }
+
+            // Ensure we're not restoring more than was originally deducted
+            if ($quantityToRestore > $originalQuantity) {
+                throw new \Exception("Cannot restore more than the original deduction amount for log ID: {$logId}");
+            }
+
+            $totalQuantity += $quantityToRestore;
+        }
+
+        // Update the batch's remaining quantity
+        $batch->increment('remaining_quantity', $totalQuantity);
+
+        // Log the restoration with references to the original adjustment logs
+        InventoryLog::create([
+            'inventory_batch_id' => $batch->id,
+            'user_id' => $user->id,
+            'action' => LogAction::QUANTITY_RESTORED,
+            'details' => [
+                'quantity_restored' => $totalQuantity,
+                'reason' => $reason,
+                'original_adjustments' => $adjustments,
+            ],
+        ]);
+
+        return $batch->fresh();
     });
 }
 }

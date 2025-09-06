@@ -210,6 +210,48 @@ export default function Create({
         setSelectedPortionDetails(newSelectedPortionDetails);
     };
 
+    // Handle select all portions for a specific batch
+    const handleSelectAllPortionsForBatch = (batchId: number, batchNumber: number, isChecked: boolean) => {
+        const batch = selectedItem?.batches.find(b => b.id === batchId);
+        if (!batch) return;
+
+        // Get current portion IDs
+        const currentPortionIds = new Set(data.portion_ids);
+        // Create a copy of the current selected portion details
+        const newSelectedPortionDetails = new Map(selectedPortionDetails);
+
+        // Update for each portion in the batch
+        batch.portions.forEach(portion => {
+            if (isChecked) {
+                // Add to selected portion IDs if not already there
+                currentPortionIds.add(portion.id);
+                // Add to selected portion details
+                newSelectedPortionDetails.set(portion.id, {
+                    label: portion.label,
+                    batchNumber: batchNumber,
+                    batchId: batchId
+                });
+            } else {
+                // Remove from selected portion IDs
+                currentPortionIds.delete(portion.id);
+                // Remove from selected portion details
+                newSelectedPortionDetails.delete(portion.id);
+            }
+        });
+
+        // Update state
+        setData('portion_ids', Array.from(currentPortionIds));
+        setSelectedPortionDetails(newSelectedPortionDetails);
+    };
+
+    // Add a helper function to check if all portions of a batch are selected
+    const areAllPortionsSelectedForBatch = (batchId: number) => {
+        const batch = selectedItem?.batches.find(b => b.id === batchId);
+        if (!batch || !batch.portions.length) return false;
+
+        return batch.portions.every(portion => data.portion_ids.includes(portion.id));
+    };
+
     const getBatchesWithSelectedPortions = () => {
         if (!selectedItem) return new Map<number, number>();
 
@@ -449,58 +491,6 @@ export default function Create({
                                             {/* For "Remove Stock" operations (including "Other" with remove) */}
                                             {!isPositiveAdjustment(data.type) && (
                                                 <div className="space-y-4">
-                                                    {/* Show selected portions summary when any exist */}
-                                                    {selectedPortionDetails.size > 0 && !preselectedBatchId && (
-                                                        <div className="space-y-2">
-                                                            <div className="flex items-center justify-between">
-                                                                <Label className="text-base">Selected Portions ({selectedPortionDetails.size})</Label>
-                                                            </div>
-                                                            <Card className="p-4 bg-muted/20">
-                                                                <ScrollArea className="max-h-48">
-                                                                    <div className="space-y-4">
-                                                                        {getGroupedSelections().map(group => (
-                                                                            <div key={group.batchId}>
-                                                                                <div className="flex justify-between items-center mb-2">
-                                                                                    <h4 className="font-medium text-sm">
-                                                                                        Batch #{group.batchNumber}
-                                                                                        <span className="ml-2 text-muted-foreground">
-                                                                                            ({group.portions.length} portions)
-                                                                                        </span>
-                                                                                    </h4>
-                                                                                    <Button
-                                                                                        type="button"
-                                                                                        variant="ghost"
-                                                                                        size="sm"
-                                                                                        onClick={() => goToBatch(group.batchId)}
-                                                                                    >
-                                                                                        Edit
-                                                                                    </Button>
-                                                                                </div>
-                                                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
-                                                                                    {group.portions.map(portion => (
-                                                                                        <Badge key={portion.id} variant="secondary" className="justify-between gap-2">
-                                                                                            <span className="font-mono truncate">{portion.label}</span>
-                                                                                            <Button
-                                                                                                type="button"
-                                                                                                variant="ghost"
-                                                                                                size="icon"
-                                                                                                className="h-4 w-4 p-0 hover:bg-transparent"
-                                                                                                onClick={() => removeSelectedPortion(portion.id)}
-                                                                                            >
-                                                                                                <X className="h-3 w-3" />
-                                                                                            </Button>
-                                                                                        </Badge>
-                                                                                    ))}
-                                                                                </div>
-                                                                                <Separator className="my-2" />
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                </ScrollArea>
-                                                            </Card>
-                                                        </div>
-                                                    )}
-
                                                     {/* Batch selection step for global view */}
                                                     {!preselectedBatchId && !selectedBatchId && (
                                                         <div className="space-y-2">
@@ -575,12 +565,34 @@ export default function Create({
                                                                 {getBatchesWithPortions().length > 0 ? (
                                                                     getBatchesWithPortions().map((batch) => (
                                                                         <div key={batch.id}>
-                                                                            <h4 className="font-semibold text-sm mb-2 border-b pb-2">
-                                                                                Batch #{batch.batch_number}
-                                                                                <span className="text-muted-foreground font-normal ml-2">
-                                                                                    (Expires: {formatDate(batch.expiration_date, 'PPP')})
-                                                                                </span>
-                                                                            </h4>
+                                                                            <div className="flex justify-between items-center mb-2 border-b pb-2">
+                                                                                <h4 className="font-semibold text-sm">
+                                                                                    Batch #{batch.batch_number}
+                                                                                    <span className="text-muted-foreground font-normal ml-2">
+                                                                                        (Expires: {formatDate(batch.expiration_date, 'PPP')})
+                                                                                    </span>
+                                                                                </h4>
+                                                                                {/* Add Select All checkbox */}
+                                                                                <div className="flex items-center space-x-2">
+                                                                                    <Checkbox
+                                                                                        id={`select-all-batch-${batch.id}`}
+                                                                                        checked={areAllPortionsSelectedForBatch(batch.id)}
+                                                                                        onCheckedChange={(checked) =>
+                                                                                            handleSelectAllPortionsForBatch(
+                                                                                                batch.id,
+                                                                                                batch.batch_number,
+                                                                                                !!checked
+                                                                                            )
+                                                                                        }
+                                                                                    />
+                                                                                    <label
+                                                                                        htmlFor={`select-all-batch-${batch.id}`}
+                                                                                        className="text-xs font-medium cursor-pointer"
+                                                                                    >
+                                                                                        Select All ({batch.portions.length})
+                                                                                    </label>
+                                                                                </div>
+                                                                            </div>
                                                                             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                                                                                 {batch.portions.map((portion) => (
                                                                                     <div
@@ -794,6 +806,66 @@ export default function Create({
                             </Button>
                         </CardFooter>
                     </Card>
+
+                    {/* Selected Portions Summary - appears below the portion selection */}
+                    {selectedPortionDetails.size > 0 && (
+    <div className="space-y-2 mt-6 border-t pt-4">
+        <div className="flex items-center justify-between">
+            <Label className="text-base">Selected Portions ({selectedPortionDetails.size})</Label>
+        </div>
+        <Card>
+            <CardContent className="p-4">
+                {/* Removed fixed height ScrollArea and using responsive height */}
+                <div className="space-y-6">
+                    {getGroupedSelections().map(group => (
+                        <div key={group.batchId} className="space-y-3">
+                            <div className="flex justify-between items-center border-b pb-2">
+                                <h4 className="font-medium text-sm">
+                                    Batch #{group.batchNumber}
+                                    <span className="ml-2 text-muted-foreground">
+                                        ({group.portions.length} portions)
+                                    </span>
+                                </h4>
+                                {!preselectedBatchId && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => goToBatch(group.batchId)}
+                                    >
+                                        Edit
+                                    </Button>
+                                )}
+                            </div>
+
+                            {/* Responsive grid for portion badges */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                                {group.portions.map(portion => (
+                                    <Badge
+                                        key={portion.id}
+                                        variant="secondary"
+                                        className="flex items-center justify-between gap-1 h-7 max-w-full"
+                                    >
+                                        <span className="font-mono truncate text-xs">{portion.label}</span>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-4 w-4 p-0 hover:bg-transparent shrink-0"
+                                            onClick={() => removeSelectedPortion(portion.id)}
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </Button>
+                                    </Badge>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
+    </div>
+)}
                 </form>
             </div>
         </AppLayout>

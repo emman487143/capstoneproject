@@ -18,6 +18,7 @@ class StoreInventoryBatchRequest extends FormRequest
         // Use the InventoryBatchPolicy to authorize this request.
         // The policy will check if the user is an admin or belongs to the target branch.
         return $this->user()->can('create', [InventoryBatch::class, $this->input('branch_id')]);
+
     }
 
     /**
@@ -53,6 +54,7 @@ class StoreInventoryBatchRequest extends FormRequest
               'received_at' => ['required', 'date'],
         'expiration_date' => ['nullable', 'date', 'after:received_at'],
             'action' => ['required', Rule::in(['save', 'save_and_add_another'])],
+            'label' => ['nullable', 'string', 'max:255'],
         ];
     }
 public function withValidator($validator)

@@ -168,6 +168,7 @@ export interface InventoryBatch {
     inventory_item_id: number;
     branch_id: number;
     batch_number: number;
+    label: string; // Added this line
     source?: string;
     unit_cost?: number;
     quantity_received: number;
@@ -182,6 +183,7 @@ export interface InventoryBatch {
     inventory_item: InventoryItem;
     branch: Branch;
     portions?: InventoryBatchPortion[]; // Optional relation
+    negative_adjustments?: InventoryLog[];
 }
 
 // This is a base type for the item form data
@@ -384,6 +386,7 @@ export interface TransferItem {
     inventory_batch: {
         id: number;
         batch_number: string;
+        label: string;
         expiration_date: string | null;
     };
     inventory_batch_portion: {

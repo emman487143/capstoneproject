@@ -1,12 +1,15 @@
 import AppLayout from '@/layouts/app-layout';
-import { Head, router, usePage } from '@inertiajs/react';
-import { BreadcrumbItem, Transfer } from '@/types';
+import { Head, usePage } from '@inertiajs/react';
+import { Auth, BreadcrumbItem, Transfer } from '@/types';
 import Heading from '@/components/heading';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import StatusBadge from './Partials/StatusBadge';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import TransferReceptionForm from './Partials/TransferReceptionForm';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, PackageCheck } from 'lucide-react';
+import { Link } from '@inertiajs/react';
 
 interface ReceivePageProps {
     transfer: Transfer;
@@ -17,7 +20,7 @@ interface ReceivePageProps {
 }
 
 export default function Receive({ transfer, can }: ReceivePageProps) {
-    const { auth } = usePage().props as any;
+    const { auth } = usePage<{ auth: Auth }>().props;
 
     const isOwnerOrAdmin = auth.user.role === 'owner' || auth.user.is_admin;
     const isSourceUser = auth.user.employee?.branch_id === transfer.source_branch.id;
@@ -50,8 +53,14 @@ export default function Receive({ transfer, can }: ReceivePageProps) {
 
             <div className="space-y-6 p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-                    <Heading title={`Receive Transfer #${transfer.id}`} description="Verify and record the reception of transferred stock." />
-                    <div className="self-start sm:self-auto">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+
+                        <Heading
+                            title={`Receive Transfer #${transfer.id}`}
+                            description="Check items and mark them as received or rejected."
+                        />
+                    </div>
+                    <div className="self-start">
                         <StatusBadge
                             status={transfer.status}
                             isSourceUser={isSourceUser}
@@ -63,7 +72,10 @@ export default function Receive({ transfer, can }: ReceivePageProps) {
                 <Card>
                     <CardHeader>
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <CardTitle>Transfer Details</CardTitle>
+                            <div>
+                                <CardTitle>Transfer Details</CardTitle>
+                                <CardDescription>Review the transfer information before receiving items</CardDescription>
+                            </div>
                             {transfer.status === 'pending' && (
                                 <Badge variant="outline" className="self-start sm:self-auto bg-amber-50 text-amber-800 border-amber-200">
                                     {isDestUser ? "Awaiting your reception" : "Awaiting reception"}
@@ -100,15 +112,20 @@ export default function Receive({ transfer, can }: ReceivePageProps) {
                         />
 
                         <div className="col-span-1 sm:col-span-2 lg:col-span-4">
-                            <p className="text-sm font-medium text-muted-foreground">Notes</p>
-                            <p className="text-sm whitespace-pre-wrap">{transfer.notes || 'No notes provided.'}</p>
+                            <p className="text-sm font-medium text-muted-foreground">Transfer Notes</p>
+                            <p className="text-sm whitespace-pre-wrap p-2 bg-muted/30 rounded-md mt-1">
+                                {transfer.notes || 'No notes provided.'}
+                            </p>
                         </div>
                     </CardContent>
+                    <CardFooter className="flex items-center border-t pt-4 pb-2">
+                        <PackageCheck className="h-5 w-5 mr-2 text-amber-600" />
+                        <span className="text-sm font-medium">Ready to receive? Check all items below</span>
+                    </CardFooter>
                 </Card>
 
-                {/* Reception Form (supports both by_portion and by_measure) */}
+                {/* Improved Reception Form with checklist style */}
                 <TransferReceptionForm transfer={transfer} />
-
             </div>
         </AppLayout>
     );
