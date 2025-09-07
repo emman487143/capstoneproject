@@ -13,7 +13,7 @@ enum LogAction: string
     case TRANSFER_CANCELLED = 'transfer_cancelled';
     case TRANSFER_REJECTED = 'transfer_rejected';
 
-    // Existing adjustment actions
+    // Adjustment log actions
     case ADJUSTMENT_SPOILAGE = 'adjustment_spoilage';
     case ADJUSTMENT_WASTE = 'adjustment_waste';
     case ADJUSTMENT_THEFT = 'adjustment_theft';
@@ -28,7 +28,14 @@ enum LogAction: string
 
     // New restoration action
     case PORTION_RESTORED = 'portion_restored';
-case QUANTITY_RESTORED = 'quantity_restored';
+    case QUANTITY_RESTORED = 'quantity_restored';
+
+    // New adjustment log actions
+    case ADJUSTMENT_DAMAGED = 'adjustment_damaged';
+    case ADJUSTMENT_MISSING = 'adjustment_missing';
+    case ADJUSTMENT_EXPIRED = 'adjustment_expired';
+    case ADJUSTMENT_STAFF_MEAL = 'adjustment_staff_meal';
+
     /**
      * Determines if this action requires admin permission.
      */

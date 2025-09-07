@@ -146,6 +146,14 @@ class InventoryController extends Controller
             ->selectRaw('SUM(remaining_quantity * unit_cost)')
             ->whereColumn('inventory_batches.inventory_item_id', 'inventory_items.id')
             ->where('branch_id', $selectedBranchId),
+        'current_batch' => InventoryBatch::query()
+            ->selectRaw("CONCAT(batch_number, '|', IFNULL(expiration_date, 'null'))")
+            ->whereColumn('inventory_batches.inventory_item_id', 'inventory_items.id')
+            ->where('branch_id', $selectedBranchId)
+            ->where('remaining_quantity', '>', 0)
+            // This is the key change - NULL dates come AFTER non-NULL dates
+            ->orderByRaw('CASE WHEN expiration_date IS NULL THEN 1 ELSE 0 END, expiration_date ASC')
+            ->limit(1),
     ]);
 
         $itemsQuery->when($request->input('search'), function ($query, $search) {
@@ -201,6 +209,25 @@ class InventoryController extends Controller
     $item->is_expiring_soon = !is_null($expiringBatchInfo);
     $item->expiring_batch = $expiringBatchInfo;
 
+    // Process the current_batch field - enhanced with better error handling
+    $currentBatchInfo = null;
+    if (!empty($item->current_batch)) {
+        try {
+            list($batchNumber, $expirationDate) = explode('|', $item->current_batch);
+            $currentBatchInfo = [
+                'batch_number' => $batchNumber,
+                'expiration_date' => $expirationDate === 'null' ? null : $expirationDate
+            ];
+        } catch (\Exception $e) {
+            // If parsing fails, at least provide the batch number
+            $currentBatchInfo = [
+                'batch_number' => $item->current_batch,
+                'expiration_date' => null
+            ];
+        }
+    }
+    $item->current_batch = $currentBatchInfo;
+
     // Set status with priority logic
     if ($item->current_stock <= 0) {
         $item->status = 'Out of Stock';
@@ -211,6 +238,10 @@ class InventoryController extends Controller
     } else {
         $item->status = 'In Stock';
     }
+
+    // Add a debug property to help identify issues
+    $item->has_current_batch = !empty($item->current_batch);
+    $item->raw_batch_data = $item->current_batch ? $item->current_batch : 'no data';
 
     return $item;
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePoll } from '@inertiajs/react';
 import { format } from 'date-fns';
 import { Search, Receipt, ShoppingCart, Calendar, User, DollarSign, Clock } from 'lucide-react';
 
@@ -49,7 +49,15 @@ export default function Index({ sales, branches, currentBranch, filters }: Index
             time: format(date, 'h:mm a')
         };
     };
-
+usePoll(10000, {
+        only: ['sales'],
+  onStart() {
+      console.log('checking update')
+  },
+  onFinish() {
+      console.log('finished checking')
+  }
+})
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Sales Log" />

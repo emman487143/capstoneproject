@@ -63,6 +63,10 @@ type InventoryItemProps = InventoryItemType & {
         expiration_date: string;
     } | null;
     total_value: number;
+    current_batch?: { // Add this new property
+        batch_number: string;
+        expiration_date: string | null;
+    } | null;
 };
 type StatusFilter = 'low_stock' | 'out_of_stock' | 'expiring_soon';
 
@@ -103,7 +107,7 @@ export default function Index({
     });
 
     // Add polling for inventory data every 30 seconds
-    usePoll(10000, {
+    usePoll(5000, {
         only: ['items', 'stats'],
   onStart() {
       console.log('checking update')
@@ -167,28 +171,44 @@ export default function Index({
     };
 
    const renderStatusBadge = (item: InventoryItemProps) => {
+    // Create an array of badges to display
+    const badges = [];
+
+    // Add the status badge first
     if (item.status.includes('Expiring Soon')) {
-        return (
-            <Badge variant="warning" className="bg-orange-500 text-white hover:bg-orange-600">
+        badges.push(
+            <Badge key="status" variant="warning" className="bg-orange-500 text-white hover:bg-orange-600">
+                {item.status}
+            </Badge>
+        );
+    } else {
+        badges.push(
+            <Badge
+                key="status"
+                variant={
+                    item.status === 'Out of Stock'
+                        ? 'destructive'
+                        : item.status === 'Low Stock'
+                        ? 'destructive'
+                        : 'default'
+                }
+            >
                 {item.status}
             </Badge>
         );
     }
 
-        return (
-        <Badge
-            variant={
-                item.status === 'Out of Stock'
-                    ? 'destructive'
-                    : item.status === 'Low Stock'
-                    ? 'destructive'
-                    : 'default'
-            }
-        >
-            {item.status}
-        </Badge>
-    );
-    };
+    // Add batch badge if available and there's stock
+    if (item.current_batch && item.current_stock > 0) {
+        badges.push(
+            <Badge key="batch" variant="outline" className="ml-2 font-normal">
+               Using Batch #{item.current_batch.batch_number}
+            </Badge>
+        );
+    }
+
+    return <div className="flex flex-wrap gap-2">{badges}</div>;
+};
 
     // Count out of stock items from the paginated items (current page only)
     const outOfStockCount = items.data.filter(item => item.status === 'Out of Stock').length;
@@ -221,7 +241,7 @@ export default function Index({
                                     })}
                                 >
                                     <MinusCircle className="mr-2 h-4 w-4" />
-                                    Record Adjustment
+                                    Remove Stock
                                 </Link>
                             </Button>
                         )}
@@ -338,6 +358,7 @@ export default function Index({
                                         <TableHead>Item</TableHead>
                                         <TableHead>Category</TableHead>
                                         <TableHead>Current Stock</TableHead>
+
                                         <TableHead>Total Value</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead><span className="sr-only">Actions</span></TableHead>
@@ -348,7 +369,10 @@ export default function Index({
                                         <TableRow key={item.id}>
                                             <TableCell className="font-medium">{item.name}</TableCell>
                                             <TableCell>{item.category?.name ?? 'N/A'}</TableCell>
-                                            <TableCell>{item.current_stock} {item.unit}</TableCell>
+                                            <TableCell>
+                                                {item.current_stock} {item.unit}
+                                            </TableCell>
+
                                             <TableCell>{formatCurrency(item.total_value)}</TableCell>
                                             <TableCell>{renderStatusBadge(item)}</TableCell>
                                             <TableCell>
@@ -422,7 +446,10 @@ export default function Index({
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="text-muted-foreground">Stock</span>
-                                                <span className="font-semibold">{item.current_stock} {item.unit}</span>
+                                                <div className="text-right">
+                                                    <span className="font-semibold">{item.current_stock} {item.unit}</span>
+
+                                                </div>
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="text-muted-foreground">Total Value</span>

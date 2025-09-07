@@ -92,6 +92,7 @@ class DashboardController extends Controller
         $bestSellerAddons = [];
         $lowStockItems = [];
         $expiringSoonItems = [];
+        $outOfStockItems = [];
 
         if ($selectedBranchId) {
             // Calculate statistics
@@ -146,6 +147,27 @@ class DashboardController extends Controller
                     'remaining' => $batch->remaining_quantity,
                     'unit' => $batch->unit,
                     'days_left' => Carbon::now()->diffInDays(Carbon::parse($batch->expiration_date)),
+                ];
+            });
+
+            // Get out of stock items
+            $outOfStockItems = InventoryItem::whereHas('branches', function ($query) use ($selectedBranchId) {
+                $query->where('branch_id', $selectedBranchId);
+            })
+            ->whereDoesntHave('batches', function ($query) use ($selectedBranchId) {
+                $query->where('branch_id', $selectedBranchId)
+                      ->where('remaining_quantity', '>', 0);
+            })
+            ->with(['category:id,name'])
+            ->select('id', 'name', 'unit', 'inventory_category_id')
+            ->take(5)
+            ->get()
+            ->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'category' => $item->category?->name ?? 'Uncategorized',
+                    'unit' => $item->unit,
                 ];
             });
 
@@ -266,6 +288,7 @@ class DashboardController extends Controller
             'bestSellerAddons' => $bestSellerAddons,
             'lowStockItems' => $lowStockItems,
             'expiringSoonItems' => $expiringSoonItems,
+            'outOfStockItems' => $outOfStockItems, // Add out of stock items
         ]);
     }
 

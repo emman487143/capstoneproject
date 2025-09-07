@@ -8,11 +8,15 @@ enum PortionStatus: string
     case UNUSED = 'unused';     // Available for use
     case USED = 'used';         // Properly used in production
 
-    // Specific adjustment reasons (replacing generic "adjusted")
+    // Specific adjustment reasons
     case SPOILED = 'spoiled';   // Discarded due to spoilage/expiration
     case WASTED = 'wasted';     // Discarded during production/handling
-    case MISSING = 'missing';   // Cannot be accounted for (theft/loss)
+    case STOLEN = 'stolen';     // Confirmed theft (with evidence)
+    case MISSING = 'missing';   // Cannot be accounted for (no evidence of theft)
     case DAMAGED = 'damaged';   // Partially damaged but potentially usable
+    case EXPIRED = 'expired';   // No longer valid for use
+    case CONSUMED = 'consumed'; // Used up in production
+    case ADJUSTED = 'adjusted'; // Generic adjustment for other reasons
 
     // Transfer statuses
     case TRANSFERRED = 'transferred'; // Successfully moved to another branch
@@ -31,11 +35,15 @@ enum PortionStatus: string
             self::USED => 'Used',
             self::SPOILED => 'Spoiled',
             self::WASTED => 'Wasted',
+            self::STOLEN => 'Stolen',
             self::MISSING => 'Missing',
             self::DAMAGED => 'Damaged',
+            self::EXPIRED => 'Expired',
+            self::CONSUMED => 'Consumed',
             self::TRANSFERRED => 'Transferred',
             self::IN_TRANSIT => 'In Transit',
             self::RESTORED => 'Restored',
+            self::ADJUSTED => 'Adjusted',
         };
     }
 
@@ -49,8 +57,11 @@ enum PortionStatus: string
             self::USED => 'bg-blue-500',
             self::SPOILED => 'bg-orange-500',
             self::WASTED => 'bg-red-500',
-            self::MISSING => 'bg-purple-600',
+            self::STOLEN => 'bg-purple-600',
+            self::MISSING => 'bg-indigo-500', // Using indigo for missing items
             self::DAMAGED => 'bg-yellow-500',
+            self::EXPIRED => 'bg-gray-500',
+            self::CONSUMED => 'bg-pink-500',
             self::TRANSFERRED => 'bg-cyan-500',
             self::IN_TRANSIT => 'bg-amber-500',
             self::RESTORED => 'bg-emerald-500',

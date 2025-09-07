@@ -363,7 +363,14 @@ function SidebarSeparator({
   )
 }
 
-function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
+function SidebarContent({
+  className,
+  hideScrollbar = false,
+  style,
+  ...props
+}: React.ComponentProps<"div"> & {
+  hideScrollbar?: boolean
+}) {
   return (
     <div
       data-slot="sidebar-content"
@@ -372,6 +379,16 @@ function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
         "flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden",
         className
       )}
+      style={{
+        ...(hideScrollbar ? {
+          // Hide scrollbar for Chrome, Safari and Opera
+          '::WebkitScrollbar': { display: 'none' },
+          // Hide scrollbar for IE, Edge and Firefox
+          msOverflowStyle: 'none',
+          scrollbarWidth: 'none',
+        } : {}),
+        ...style
+      }}
       {...props}
     />
   )

@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { type PageProps, type BreadcrumbItem, Branch } from '@/types';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePoll } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
     AlertTriangle, BadgeDollarSign, History, PackageX, ShoppingCart, ArrowUpDown,
@@ -106,6 +106,14 @@ interface ExpiringSoonItem {
     days_left: number;
 }
 
+// First, add OutOfStockItem interface
+interface OutOfStockItem {
+    id: number;
+    name: string;
+    category: string;
+    unit: string;
+}
+
 // Update the PageProps interface
 interface DashboardPageProps extends PageProps {
     stats: DashboardStats;
@@ -123,6 +131,7 @@ interface DashboardPageProps extends PageProps {
     bestSellerAddons: BestSellerProduct[];
     lowStockItems: LowStockItem[];
     expiringSoonItems: ExpiringSoonItem[];
+    outOfStockItems: OutOfStockItem[]; // Add this line
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -183,14 +192,23 @@ export default function Dashboard({
     bestSellerAddons = [],
     lowStockItems = [],
     expiringSoonItems = [],
+    outOfStockItems = [], // Add default empty array
 }: DashboardPageProps) {
     const [salesPeriod, setSalesPeriod] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
-    const [stockTab, setStockTab] = useState<'low' | 'expiring'>('low');
+    const [stockTab, setStockTab] = useState<'low' | 'expiring' | 'out_of_stock'>('low');
 
     const handleBranchChange = (branchId: string) => {
         router.get(route('dashboard'), { branch: branchId }, { preserveState: true, replace: true });
     };
 
+    usePoll(10000, {
+      onStart() {
+          console.log('checking update')
+      },
+      onFinish() {
+          console.log('finished checking')
+      }
+    })
     // Get appropriate badge color for different activities
     const getActionBadgeClass = (type: string, action: string) => {
         if (type === 'sale') return 'bg-green-500';
@@ -426,14 +444,18 @@ export default function Dashboard({
                         <div className="flex items-center justify-between">
                             <CardTitle>Stock Status</CardTitle>
                             <Tabs value={stockTab} onValueChange={(value) => setStockTab(value as any)} className="w-[400px]">
-                                <TabsList className="grid w-full grid-cols-2">
+                                <TabsList className="grid w-full grid-cols-3">
                                     <TabsTrigger value="low">
                                         <AlertTriangle className="mr-2 h-4 w-4 text-destructive" />
-                                        Low Stock Items
+                                        Low Stock
                                     </TabsTrigger>
                                     <TabsTrigger value="expiring">
                                         <History className="mr-2 h-4 w-4 text-orange-500" />
                                         Expiring Soon
+                                    </TabsTrigger>
+                                    <TabsTrigger value="out_of_stock">
+                                        <PackageX className="mr-2 h-4 w-4 text-gray-500" />
+                                        Out of Stock
                                     </TabsTrigger>
                                 </TabsList>
                             </Tabs>
@@ -489,7 +511,7 @@ export default function Dashboard({
                                     </div>
                                 )}
                             </div>
-                        ) : (
+                        ) : stockTab === 'expiring' ? (
                             <div>
                                 <Table>
                                     <TableHeader>
@@ -547,6 +569,52 @@ export default function Dashboard({
                                             className="text-sm text-primary hover:underline inline-flex items-center"
                                         >
                                             View all {stats.expiringSoonCount} expiring items
+                                            <ArrowUpRight className="ml-1 h-3 w-3" />
+                                        </Link>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Item</TableHead>
+                                            <TableHead>Category</TableHead>
+                                            <TableHead>Unit</TableHead>
+                                            <TableHead>Status</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {outOfStockItems.length > 0 ? (
+                                            outOfStockItems.map(item => (
+                                                <TableRow key={item.id}>
+                                                    <TableCell className="font-medium">{item.name}</TableCell>
+                                                    <TableCell>{item.category}</TableCell>
+                                                    <TableCell>{item.unit}</TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="outline" className="bg-gray-200 text-gray-800">
+                                                            Out of Stock
+                                                        </Badge>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow>
+                                                <TableCell colSpan={4} className="h-24 text-center">
+                                                    No out of stock items.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                                {outOfStockItems.length > 0 && stats.outOfStockCount > outOfStockItems.length && (
+                                    <div className="mt-4 text-center">
+                                        <Link
+                                            href={route('inventory.index', { branch: currentBranch?.id, status: 'out_of_stock' })}
+                                            className="text-sm text-primary hover:underline inline-flex items-center"
+                                        >
+                                            View all {stats.outOfStockCount} out of stock items
                                             <ArrowUpRight className="ml-1 h-3 w-3" />
                                         </Link>
                                     </div>

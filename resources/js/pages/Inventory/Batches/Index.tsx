@@ -205,39 +205,11 @@ export default function Index({ batches, filteredItem, currentBranch }: IndexPro
                                                     {formatCurrency(calculateTotalValue(batch))}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon">
-                                                                <ChevronDown className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem asChild>
-                                                                <Link href={route('inventory.batches.show', batch.id)}>
-                                                                    View Details
-                                                                </Link>
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem asChild>
-                                                                <Link href={route('inventory.batches.edit', batch.id)}>
-                                                                    <Edit className="mr-2 h-4 w-4" />
-                                                                    Edit Batch
-                                                                </Link>
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem asChild>
-                                                                <Link
-                                                                    href={route('inventory.adjustments.create', {
-                                                                        batch_id: batch.id,
-                                                                        branch_id: batch.branch_id,
-                                                                        item_id: batch.inventory_item_id
-                                                                    })}
-                                                                >
-                                                                    <MinusCircle className="mr-2 h-4 w-4" />
-                                                                    Record Adjustment
-                                                                </Link>
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
+                                                    <Button variant="ghost" size="sm" asChild>
+                                                        <Link href={route('inventory.batches.show', batch.id)}>
+                                                            View Details
+                                                        </Link>
+                                                    </Button>
                                                 </TableCell>
                                             </TableRow>
                                         ))
@@ -309,40 +281,12 @@ export default function Index({ batches, filteredItem, currentBranch }: IndexPro
                                                 </span>
                                             </div>
                                         </div>
-                                        <div className="mt-4 flex gap-2">
-                                            <Button variant="outline" size="sm" className="w-full" asChild>
+                                        <div className="mt-4">
+                                            <Button variant="default" size="sm" className="w-full" asChild>
                                                 <Link href={route('inventory.batches.show', batch.id)}>
                                                     View Details
                                                 </Link>
                                             </Button>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="flex-shrink-0">
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem asChild>
-                                                        <Link href={route('inventory.batches.edit', batch.id)}>
-                                                            <Edit className="mr-2 h-4 w-4" />
-                                                            Edit Batch
-                                                        </Link>
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem asChild>
-                                                        <Link
-                                                            href={route('inventory.adjustments.create', {
-                                                                batch_id: batch.id,
-                                                                branch_id: batch.branch_id,
-                                                                item_id: batch.inventory_item_id
-                                                            })}
-                                                        >
-                                                            <MinusCircle className="mr-2 h-4 w-4" />
-                                                            Record Adjustment
-                                                        </Link>
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
                                         </div>
                                     </Card>
                                 ))
@@ -357,7 +301,7 @@ export default function Index({ batches, filteredItem, currentBranch }: IndexPro
                             )}
                         </div>
                     </CardContent>
-                    {batches.meta && batches.meta.last_page > 1 && <Pagination links={batches.meta.links} />}
+                    {batches.last_page > 1 && <Pagination links={batches.links} />}
                 </Card>
             </div>
         </AppLayout>

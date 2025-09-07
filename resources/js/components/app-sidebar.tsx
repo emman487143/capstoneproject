@@ -109,7 +109,7 @@ const salesNavItems: NavItem[] = [
             <SidebarHeader>
                 <AppLogo />
             </SidebarHeader>
-            <SidebarContent>
+            <SidebarContent hideScrollbar={true}>
                 {auth.user.is_admin && (<SidebarMenu>
 
                     <NavMain items={mainNavItems} />

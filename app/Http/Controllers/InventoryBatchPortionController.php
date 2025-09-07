@@ -48,13 +48,22 @@ class InventoryBatchPortionController extends Controller
             ->whereIn('status', [
                 PortionStatus::SPOILED->value,
                 PortionStatus::WASTED->value,
-                PortionStatus::MISSING->value
+                PortionStatus::MISSING->value,
+                PortionStatus::DAMAGED->value,    // Added
+                PortionStatus::EXPIRED->value,    // Added
+                PortionStatus::CONSUMED->value,   // Added (for Staff Meal)
+                PortionStatus::STOLEN->value,     // Added (for Theft)
+                PortionStatus::ADJUSTED->value    // Added (for Other)
             ])
             ->with(['logs' => function ($query) {
                 $query->whereIn('action', [
                     LogAction::ADJUSTMENT_SPOILAGE->value,
                     LogAction::ADJUSTMENT_WASTE->value,
                     LogAction::ADJUSTMENT_THEFT->value,
+                    LogAction::ADJUSTMENT_DAMAGED->value,    // Added
+                    LogAction::ADJUSTMENT_MISSING->value,    // Added
+                    LogAction::ADJUSTMENT_EXPIRED->value,    // Added
+                    LogAction::ADJUSTMENT_STAFF_MEAL->value, // Added
                     LogAction::ADJUSTMENT_OTHER->value
                 ])
                 ->latest()

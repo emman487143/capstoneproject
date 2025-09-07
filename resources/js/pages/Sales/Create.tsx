@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Head, useForm, router, usePage } from '@inertiajs/react';
+import { Head, useForm, router, usePage, usePoll } from '@inertiajs/react';
 import {
     Clock,
     ImageOff,
@@ -105,7 +105,14 @@ export default function CreateSale({ productsByCategory, branches, currentBranch
 
     const debouncedCart = useDebounce(cart, 300);
     const debouncedSearch = useDebounce(searchQuery, 300);
-
+usePoll(10000, {
+  onStart() {
+      console.log('checking update')
+  },
+  onFinish() {
+      console.log('finished checking')
+  }
+})
     // Update form data when cart changes
     useEffect(() => {
         const itemsToSubmit = cart.map(({ product_id, quantity, modifications }) => ({

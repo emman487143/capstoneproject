@@ -159,7 +159,17 @@ export default function Index({ employees, filters, archivedEmployeesCount }: In
             </div>
 
             {/* Deactivate/Activate Dialog */}
-            <AlertDialog open={!!employeeToToggle} onOpenChange={(open) => !open && setEmployeeToToggle(null)}>
+            <AlertDialog
+                open={!!employeeToToggle}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        // Only set to null when dialog is closing and not processing
+                        if (!isProcessing) {
+                            setEmployeeToToggle(null);
+                        }
+                    }
+                }}
+            >
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you sure you want to {toggleAction.toLowerCase()}?</AlertDialogTitle>
@@ -170,7 +180,12 @@ export default function Index({ employees, filters, archivedEmployeesCount }: In
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleToggleStatus} disabled={isProcessing}>
+                        <AlertDialogAction
+                            onClick={handleToggleStatus}
+                            disabled={isProcessing}
+                            // Add data-autofocus to properly manage focus
+                            data-autofocus
+                        >
                             {isProcessing && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
                             <ToggleIcon className="mr-2 h-4 w-4" />
                             {toggleAction} Employee
@@ -196,6 +211,7 @@ export default function Index({ employees, filters, archivedEmployeesCount }: In
                             onClick={handleArchive}
                             disabled={isProcessing}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            data-autofocus
                         >
                             {isProcessing && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
                             <Archive className="mr-2 h-4 w-4" />

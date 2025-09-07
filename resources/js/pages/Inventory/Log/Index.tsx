@@ -1,4 +1,4 @@
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm, usePage, usePoll } from '@inertiajs/react';
 import { format } from 'date-fns';
 import { FormEvent, useEffect, useState, ChangeEvent } from 'react';
 import { toast } from 'sonner';
@@ -66,7 +66,15 @@ export default function Index({ logs, branches, currentBranch, filters }: IndexP
         setSearchTerm(value);
         debouncedSearch(value);
     };
-
+usePoll(10000, {
+        only: ['logs'],
+  onStart() {
+      console.log('checking update')
+  },
+  onFinish() {
+      console.log('finished checking')
+  }
+})
     const clearSearch = () => {
         setSearchTerm('');
         router.get(route('inventory.logs.index'), {}, { preserveState: true, replace: true });

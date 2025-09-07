@@ -35,40 +35,47 @@ class StoreInventoryAdjustmentRequest extends FormRequest
         }
 
         // The correct check: Can the user create inventory records in this specific branch?
-        // This now correctly calls the updated InventoryBatchPolicy@create method for all cases.
         return $this->user()->can('create', [InventoryBatch::class, $branchId]);
     }
 
     /**
      * Get the validation rules that apply to the request.
      *
-     * REFACTOR: Simplify rules to their most basic form. Complex conditional logic
-     * is moved to `withValidator` for a more robust, sequential process.
+     * FIX: Include all potentially required fields for any adjustment type
      */
     public function rules(): array
     {
         return [
-            'inventory_item_id' => ['required', 'integer', 'exists:inventory_items,id'],
-            'type' => ['required', new Enum(AdjustmentType::class)],
-            'reason' => ['required_if:type,Other', 'nullable', 'string', 'max:255'],
-
-            // Conditional fields are now validated in `withValidator`.
-            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
+            'branch_id' => ['required', 'exists:branches,id'],
+            'inventory_item_id' => ['required', 'exists:inventory_items,id'],
+            'type' => ['required', 'string', new Enum(AdjustmentType::class)],
+            'inventory_batch_id' => ['nullable', 'exists:inventory_batches,id'], // Changed from required
+            'quantity' => ['nullable', 'numeric', 'min:0.01'],
+            // Add the missing portion_ids fields back
             'portion_ids' => ['nullable', 'array'],
             'portion_ids.*' => ['integer', 'exists:inventory_batch_portions,id'],
-            'inventory_batch_id' => ['nullable', 'integer', 'exists:inventory_batches,id'],
-            'quantity' => ['nullable', 'numeric', 'min:0.01'],
+            'reason' => ['nullable', 'string', 'max:255'],
         ];
     }
 
     /**
-     * Configure the validator instance.
-     *
-     * REFACTOR: This hook now orchestrates all complex validation. It first determines the
-     * item's tracking type and then applies the appropriate validation logic sequentially,
-     * ensuring data integrity and preventing race conditions.
+     * Set up conditional validation requirements based on input type
      */
-     public function withValidator(Validator $validator): void
+    protected function prepareForValidation(): void
+    {
+        // Initialize empty arrays if they're not present but might be needed
+        if ($this->has('inventory_item_id')) {
+            $item = InventoryItem::find($this->input('inventory_item_id'));
+            if ($item && $item->tracking_type === TrackingType::BY_PORTION && !$this->has('portion_ids')) {
+                $this->merge(['portion_ids' => []]);
+            }
+        }
+    }
+
+    /**
+     * Configure the validator instance.
+     */
+    public function withValidator(Validator $validator): void
     {
         $validator->after(function ($validator) {
             if ($validator->errors()->any()) {
@@ -76,22 +83,26 @@ class StoreInventoryAdjustmentRequest extends FormRequest
             }
 
             $item = InventoryItem::find($this->input('inventory_item_id'));
-            // This check is technically redundant due to the 'exists' rule, but it's a crucial safeguard.
             if (!$item) {
                 $validator->errors()->add('inventory_item_id', 'The selected inventory item could not be found.');
                 return;
             }
 
-            // DEFINITIVE FIX: The core logic was flawed. We must first check the item's tracking type
-            // and *then* delegate to the appropriate validation method. This prevents the fatal error
-            // caused by trying to validate portion data on a batch-based request.
+            // Type-specific validation
             if ($item->tracking_type === TrackingType::BY_PORTION) {
                 $this->validatePortionAdjustment($validator, $item);
             } elseif ($item->tracking_type === TrackingType::BY_MEASURE) {
                 $this->validateQuantityAdjustment($validator, $item);
             }
+
+            // Always validate reason for types that require it
+            $type = $this->input('type');
+            if (($type === AdjustmentType::OTHER->value || $type === AdjustmentType::MISSING->value) && !$this->filled('reason')) {
+                $validator->errors()->add('reason', 'A reason is required for this adjustment type.');
+            }
         });
     }
+
     /**
      * Validates data for a portion-based adjustment.
      */
@@ -101,7 +112,7 @@ class StoreInventoryAdjustmentRequest extends FormRequest
         $branchId = $this->input('branch_id');
         if (!$branchId) {
             $validator->errors()->add('branch_id', 'A branch must be selected for portion-based adjustments.');
-            return; // Stop validation if fundamental data is missing.
+            return;
         }
 
         // Rule: portion_ids must be a non-empty array.
@@ -127,7 +138,7 @@ class StoreInventoryAdjustmentRequest extends FormRequest
                     'portion_ids',
                     "Portion '{$portion->label}' does not belong to the selected item or branch."
                 );
-                return; // Stop on first error.
+                return;
             }
         }
     }

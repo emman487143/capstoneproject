@@ -328,7 +328,14 @@ public function recordQuantityAdjustment(array $data, User $user): void
 public function recordPortionAdjustment(array $data, User $user): void
 {
     DB::transaction(function () use ($data, $user) {
-        $portionIds = $data['portion_ids'];
+        // Check if portion_ids exists and provide a default empty array if not
+        $portionIds = $data['portion_ids'] ?? [];
+
+        // If no portions are specified, throw a user-friendly error
+        if (empty($portionIds)) {
+            throw new InvalidArgumentException('Please select at least one portion to adjust.');
+        }
+
         $adjustmentType = AdjustmentType::from($data['type']);
         $isPositive = $adjustmentType->isPositive();
         $reason = $data['type'] === AdjustmentType::OTHER->value ? $data['reason'] : $data['type'];
@@ -425,12 +432,16 @@ public function correctBatchQuantity(InventoryBatch $batch, float $newQuantity, 
         // Update the received quantity
         $batch->quantity_received = $newQuantity;
 
-        // Also adjust remaining_quantity proportionally
-        if ($batch->remaining_quantity > 0) {
+        // FIX: Adjust remaining quantity even if currently zero
+        if ($quantityDifference > 0) {
+            // When increasing, always add to remaining_quantity
             $batch->remaining_quantity += $quantityDifference;
-
-            // Ensure remaining quantity never goes negative
-            if ($batch->remaining_quantity < 0) {
+        } else if ($quantityDifference < 0) {
+            // When decreasing, only reduce if there's enough remaining
+            if (abs($quantityDifference) <= $batch->remaining_quantity) {
+                $batch->remaining_quantity += $quantityDifference;
+            } else {
+                // Can't reduce more than what's remaining
                 $batch->remaining_quantity = 0;
             }
         }
@@ -442,6 +453,15 @@ public function correctBatchQuantity(InventoryBatch $batch, float $newQuantity, 
             if ($quantityDifference > 0) {
                 // Add new portions
                 $this->createPortionsForBatch($batch, (int)$quantityDifference);
+
+                // FIX: Explicitly update remaining_quantity for by_portion items
+                // to ensure it matches the count of unused portions
+                $unusedCount = $batch->portions()
+                    ->where('status', PortionStatus::UNUSED)
+                    ->count();
+
+                $batch->remaining_quantity = $unusedCount;
+                $batch->save();
             } elseif ($quantityDifference < 0) {
                 // Remove portions (only unused ones, and only as many as needed)
                 $portionsToRemove = (int)abs($quantityDifference);
@@ -461,6 +481,12 @@ public function correctBatchQuantity(InventoryBatch $batch, float $newQuantity, 
                 foreach ($unusedPortions as $portion) {
                     $portion->delete();
                 }
+
+                // FIX: Update remaining quantity to match unused portions count
+                $batch->remaining_quantity = $batch->portions()
+                    ->where('status', PortionStatus::UNUSED)
+                    ->count();
+                $batch->save();
             }
         }
 
@@ -493,22 +519,30 @@ public function restorePortions(array $portionIds, string $reason, User $user): 
     DB::transaction(function () use ($portionIds, $reason, $user) {
         // Get adjusted portions with their original adjustment logs
         $portions = InventoryBatchPortion::with(['batch', 'logs' => function ($query) {
-    $query->whereIn('action', [
-        LogAction::ADJUSTMENT_SPOILAGE->value,
-        LogAction::ADJUSTMENT_WASTE->value,
-        LogAction::ADJUSTMENT_THEFT->value,
-        LogAction::ADJUSTMENT_OTHER->value
-    ])->latest()->limit(1);
-}])
-->whereIn('id', $portionIds)
-->whereIn('status', [
-    PortionStatus::SPOILED->value,
-    PortionStatus::WASTED->value,
-    PortionStatus::MISSING->value, // Replaced ADJUSTED with MISSING
-    PortionStatus::DAMAGED->value  // Added DAMAGED status
-])
-->lockForUpdate()
-->get();
+            $query->whereIn('action', [
+                LogAction::ADJUSTMENT_SPOILAGE->value,
+                LogAction::ADJUSTMENT_WASTE->value,
+                LogAction::ADJUSTMENT_THEFT->value,
+                LogAction::ADJUSTMENT_DAMAGED->value,    // Added
+                LogAction::ADJUSTMENT_MISSING->value,    // Added
+                LogAction::ADJUSTMENT_EXPIRED->value,    // Added
+                LogAction::ADJUSTMENT_STAFF_MEAL->value, // Added
+                LogAction::ADJUSTMENT_OTHER->value
+            ])->latest()->limit(1);
+        }])
+        ->whereIn('id', $portionIds)
+        ->whereIn('status', [
+            PortionStatus::SPOILED->value,
+            PortionStatus::WASTED->value,
+            PortionStatus::MISSING->value,
+            PortionStatus::DAMAGED->value,    // Added
+            PortionStatus::EXPIRED->value,    // Added
+            PortionStatus::CONSUMED->value,   // Added (for Staff Meal)
+            PortionStatus::STOLEN->value,     // Added (for Theft)
+            PortionStatus::ADJUSTED->value    // Added (for Other)
+        ])
+        ->lockForUpdate()
+        ->get();
 
         if ($portions->count() !== count($portionIds)) {
             throw new InvalidArgumentException(

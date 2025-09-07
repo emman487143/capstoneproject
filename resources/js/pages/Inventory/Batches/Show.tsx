@@ -1,7 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { format } from 'date-fns';
 import { useState } from 'react';
-import { Edit, Wrench, MinusCircle, RefreshCw, Printer } from 'lucide-react'; // Add Printer icon
+import { Edit, Wrench, MinusCircle, RefreshCw, Printer, ChevronDown } from 'lucide-react'; // Add Printer icon
 import { type VariantProps } from 'class-variance-authority';
 
 import { BreadcrumbItem, InventoryBatch, SharedData } from '@/types';
@@ -15,6 +15,7 @@ import { CorrectCountModal } from './Partials/CorrectCountModal';
 import { RestorePortionModal } from './Partials/RestorePortionModal';
 import RestoreQuantityModal from './Partials/RestoreQuantityModal';
 import { formatCurrency } from '@/lib/utils';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface ShowPageProps extends SharedData {
     batch: InventoryBatch;
@@ -110,54 +111,66 @@ export default function Show({ batch }: ShowPageProps) {
                         title="Batch Details"
                         description={`Viewing batch #${batch.batch_number} of ${batch.inventory_item.name}.`}
                     />
-                    <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
-                        <Button variant="outline" asChild>
-                            <Link href={route('inventory.batches.edit', batch.id)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit
-                            </Link>
-                        </Button>
-                        <Button variant="outline" onClick={() => setIsCorrectCountModalOpen(true)}>
-                            <Wrench className="mr-2 h-4 w-4" />
-                            Correct Count
-                        </Button>
+                    <div className="flex items-center gap-2">
+                        {/* Consolidated dropdown with all actions */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button>
+                                    Manage Batch
+                                    <ChevronDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                {/* Primary Action placed first with visual distinction */}
+                                <DropdownMenuItem asChild >
+                                    <Link
+                                        href={route('inventory.adjustments.create', {
+                                            item_id: batch.inventory_item.id,
+                                            batch_id: batch.id,
+                                            branch_id: batch.branch_id,
+                                        })}
+                                    >
+                                        <MinusCircle className="mr-2 h-4 w-4" />
+                                        Remove Stock
+                                    </Link>
+                                </DropdownMenuItem>
 
-                        {batch.inventory_item.tracking_type === 'by_portion' ? (
-                            <>
-                                <Button variant="outline" onClick={() => setIsRestoreModalOpen(true)}>
-                                    <RefreshCw className="mr-2 h-4 w-4" />
-                                    Restore Portions
-                                </Button>
-                                <Button variant="outline" onClick={handlePrintLabels}>
-                                    <Printer className="mr-2 h-4 w-4" />
-                                    Print Portion Labels
-                                </Button>
-                            </>
-                        ) : (
-                            <>
-                                <Button variant="outline" onClick={handleRestoreQuantity}>
-                                    <RefreshCw className="mr-2 h-4 w-4" />
-                                    Restore Quantity
-                                </Button>
-                                <Button variant="outline" onClick={handlePrintLabels}>
-                                    <Printer className="mr-2 h-4 w-4" />
-                                    Print Batch Label
-                                </Button>
-                            </>
-                        )}
+                                <DropdownMenuItem asChild>
+                                    <Link href={route('inventory.batches.edit', batch.id)}>
+                                        <Edit className="mr-2 h-4 w-4" />
+                                        Edit
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setIsCorrectCountModalOpen(true)}>
+                                    <Wrench className="mr-2 h-4 w-4" />
+                                    Correct Count
+                                </DropdownMenuItem>
 
-                        <Button asChild>
-                            <Link
-                                href={route('inventory.adjustments.create', {
-                                    item_id: batch.inventory_item.id,
-                                    batch_id: batch.id,
-                                    branch_id: batch.branch_id,
-                                })}
-                            >
-                                <MinusCircle className="mr-2 h-4 w-4" />
-                                Record Adjustment
-                            </Link>
-                        </Button>
+                                {batch.inventory_item.tracking_type === 'by_portion' ? (
+                                    <>
+                                        <DropdownMenuItem onClick={() => setIsRestoreModalOpen(true)}>
+                                            <RefreshCw className="mr-2 h-4 w-4" />
+                                            Restore Portions
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={handlePrintLabels}>
+                                            <Printer className="mr-2 h-4 w-4" />
+                                            Print Portion Labels
+                                        </DropdownMenuItem>
+                                    </>
+                                ) : (
+                                    <>
+                                        <DropdownMenuItem onClick={handleRestoreQuantity}>
+                                            <RefreshCw className="mr-2 h-4 w-4" />
+                                            Restore Quantity
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={handlePrintLabels}>
+                                            <Printer className="mr-2 h-4 w-4" />
+                                            Print Batch Label
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
                 <Card>

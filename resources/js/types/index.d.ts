@@ -19,7 +19,7 @@ export interface Auth {
     user: User;
 }
 
-export type AdjustmentType = 'Spoilage' | 'Waste' | 'Theft' | 'Other';
+export type AdjustmentType = 'Spoilage' | 'Waste' | 'Theft' | 'Damaged' | 'Missing' | 'Expired' | 'Staff Meal' | 'Other';
 // --- SHARED UI & PAGE PROPS ---
 
 export interface BreadcrumbItem {

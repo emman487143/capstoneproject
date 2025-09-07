@@ -73,6 +73,16 @@ export default function Restore({ batch, adjustedPortions }: RestorePageProps) {
                 return 'destructive';
             case 'wasted':
                 return 'destructive';
+            case 'damaged':
+                return 'destructive';
+            case 'expired':
+                return 'destructive';
+            case 'missing':
+                return 'warning';
+            case 'consumed':
+                return 'secondary';
+            case 'stolen':
+                return 'destructive';
             case 'adjusted':
                 return 'secondary';
             default:
@@ -87,6 +97,10 @@ export default function Restore({ batch, adjustedPortions }: RestorePageProps) {
             case 'adjustment_spoilage': return 'Spoilage';
             case 'adjustment_waste': return 'Waste';
             case 'adjustment_theft': return 'Theft';
+            case 'adjustment_damaged': return 'Damaged';
+            case 'adjustment_missing': return 'Missing';
+            case 'adjustment_expired': return 'Expired';
+            case 'adjustment_staff_meal': return 'Staff Meal';
             case 'adjustment_other': return 'Other';
             default: return type.replace('adjustment_', '');
         }

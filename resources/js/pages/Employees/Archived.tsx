@@ -43,15 +43,21 @@ export default function Archived({ employees, filters }: ArchivedPageProps) {
     const handleRestore = () => {
         if (!employeeToRestore) return;
         setIsProcessing(true);
-        router.post(
-            route('employees.restore', employeeToRestore.id),
-            {},
-            {
-                preserveScroll: true,
-                onSuccess: () => setEmployeeToRestore(null),
-                onFinish: () => setIsProcessing(false),
-            },
-        );
+
+        // First close dialog by resetting state
+        setEmployeeToRestore(null);
+
+        // Then perform the navigation with a small delay
+        setTimeout(() => {
+            router.post(
+                route('employees.restore', employeeToRestore.id),
+                {},
+                {
+                    preserveScroll: true,
+                    onFinish: () => setIsProcessing(false),
+                },
+            );
+        }, 0);
     };
 
     return (

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link } from '@inertiajs/react';
 import { RefreshCw } from 'lucide-react';
@@ -10,6 +9,8 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
+    DialogPortal,
+    DialogOverlay,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { InventoryBatch } from '@/types';
@@ -51,8 +52,8 @@ export function RestorePortionModal({ batch, isOpen, onClose }: RestorePortionMo
                     </p>
                 </div>
 
-                <DialogFooter>
-                    <Button variant="outline" onClick={onClose}>
+                <DialogFooter className="flex flex-col sm:flex-row sm:justify-end gap-2">
+                    <Button variant="outline" onClick={onClose} type="button">
                         Cancel
                     </Button>
                     <Button asChild>
