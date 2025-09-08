@@ -50,7 +50,7 @@ export default function Index({ pendingTransfers, historyTransfers }: IndexPageP
     };
 
     usePoll(10000, {
-            only: ['pendingTransfers', 'historyTransfers'],
+        only: ['pendingTransfers', 'historyTransfers'],
       onStart() {
           console.log('checking update')
       },

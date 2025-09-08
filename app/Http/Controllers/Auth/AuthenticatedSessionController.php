@@ -48,6 +48,12 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // If the user is a staff member, redirect them to the inventory overview.
+        // All other roles will proceed to the default dashboard.
+        if ($request->user()->role === 'staff') {
+            return redirect()->route('inventory.index');
+        }
+
         return redirect()->intended(RouteServiceProvider::HOME);
     }
 

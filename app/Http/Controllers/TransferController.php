@@ -36,15 +36,17 @@ class TransferController extends Controller
         $user = Auth::user();
         $userBranchId = $user->employee?->branch_id;
 
-        // Eager load relationships for efficiency
         $relations = ['sourceBranch', 'destinationBranch', 'sendingUser', 'receivingUser'];
 
         // 1. Get all pending transfers relevant to the user's branch(es). Non-paginated.
         $pendingTransfers = Transfer::with($relations)
             ->where('status', TransferStatus::PENDING)
             ->when($userBranchId && !$user->is_admin, function ($query) use ($userBranchId) {
-                $query->where('source_branch_id', $userBranchId)
-                    ->orWhere('destination_branch_id', $userBranchId);
+                // CORRECTED: Use a nested where to group the OR conditions correctly.
+                $query->where(function ($q) use ($userBranchId) {
+                    $q->where('source_branch_id', $userBranchId)
+                      ->orWhere('destination_branch_id', $userBranchId);
+                });
             })
             ->latest('sent_at')
             ->get();
@@ -53,8 +55,11 @@ class TransferController extends Controller
         $historyTransfers = Transfer::with($relations)
             ->where('status', '!=', TransferStatus::PENDING)
             ->when($userBranchId && !$user->is_admin, function ($query) use ($userBranchId) {
-                $query->where('source_branch_id', $userBranchId)
-                    ->orWhere('destination_branch_id', $userBranchId);
+                // CORRECTED: Use a nested where to group the OR conditions correctly.
+                $query->where(function ($q) use ($userBranchId) {
+                    $q->where('source_branch_id', $userBranchId)
+                      ->orWhere('destination_branch_id', $userBranchId);
+                });
             })
             ->latest('sent_at')
             ->paginate(10);

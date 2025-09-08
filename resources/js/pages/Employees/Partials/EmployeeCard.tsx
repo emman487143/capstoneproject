@@ -50,7 +50,7 @@ export default function EmployeeCard({ employee, onToggleStatus, onArchive }: Em
                             </Link>
                         </DropdownMenuItem>
                         {employee.user_id && (
-                            <DropdownMenuItem onClick={() => onToggleStatus(employee)}>
+                            <DropdownMenuItem onSelect={() => setTimeout(() => onToggleStatus(employee), 0)}>
                                 <ToggleIcon className="mr-2 h-4 w-4" />
                                 <span>{toggleActionText}</span>
                             </DropdownMenuItem>

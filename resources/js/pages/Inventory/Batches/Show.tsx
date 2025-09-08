@@ -141,14 +141,14 @@ export default function Show({ batch }: ShowPageProps) {
                                         Edit
                                     </Link>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setIsCorrectCountModalOpen(true)}>
+                                <DropdownMenuItem onSelect={() => setTimeout(() => setIsCorrectCountModalOpen(true), 0)}>
                                     <Wrench className="mr-2 h-4 w-4" />
                                     Correct Count
                                 </DropdownMenuItem>
 
                                 {batch.inventory_item.tracking_type === 'by_portion' ? (
                                     <>
-                                        <DropdownMenuItem onClick={() => setIsRestoreModalOpen(true)}>
+                                        <DropdownMenuItem onSelect={() => setTimeout(() => setIsRestoreModalOpen(true), 0)}>
                                             <RefreshCw className="mr-2 h-4 w-4" />
                                             Restore Portions
                                         </DropdownMenuItem>
@@ -159,7 +159,7 @@ export default function Show({ batch }: ShowPageProps) {
                                     </>
                                 ) : (
                                     <>
-                                        <DropdownMenuItem onClick={handleRestoreQuantity}>
+                                        <DropdownMenuItem onSelect={() => setTimeout(() => setIsRestoreQuantityModalOpen(true), 0)}>
                                             <RefreshCw className="mr-2 h-4 w-4" />
                                             Restore Quantity
                                         </DropdownMenuItem>

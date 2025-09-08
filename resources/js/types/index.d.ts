@@ -244,11 +244,9 @@ export interface Log {
     batch?: InventoryBatch;
     // Added property for formatted details from LogDetailFormatter service
     formatted_details?: {
-        title?: string;
-        description?: string;
         quantityInfo?: string;
-        reason?: string;
-        metadata?: Array<{ label: string; value: string }>;
+        description?: string;
+        metadata?: Array<{ label: string; value: string | number }>;
     };
 }
 
@@ -393,6 +391,9 @@ export interface TransferItem {
         id: number;
         label: string;
     } | null;
+    reception_status?: 'received' | 'rejected' | 'received_with_issues';
+    received_quantity?: number;
+    reception_notes?: string | null;
 }
 
 // Represents a full Transfer record (for Index/Show pages)
