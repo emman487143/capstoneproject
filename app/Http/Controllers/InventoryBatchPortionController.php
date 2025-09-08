@@ -52,7 +52,7 @@ class InventoryBatchPortionController extends Controller
                 PortionStatus::DAMAGED->value,    // Added
                 PortionStatus::EXPIRED->value,    // Added
                 PortionStatus::CONSUMED->value,   // Added (for Staff Meal)
-                PortionStatus::STOLEN->value,     // Added (for Theft)
+                PortionStatus::STOLEN->value,     // Ad //sdded (for Theft)
                 PortionStatus::ADJUSTED->value    // Added (for Other)
             ])
             ->with(['logs' => function ($query) {

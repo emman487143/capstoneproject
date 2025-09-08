@@ -19,7 +19,7 @@ enum LogAction: string
     case ADJUSTMENT_THEFT = 'adjustment_theft';
     case ADJUSTMENT_OTHER = 'adjustment_other';
 
-    // New positive adjustment actions (we'll still keep these for now)
+    // New positive adjustment actions (we'll stilsl keep these for now)
     case ADJUSTMENT_FOUND = 'adjustment_found';
     case ADJUSTMENT_RETURNED = 'adjustment_returned';
 

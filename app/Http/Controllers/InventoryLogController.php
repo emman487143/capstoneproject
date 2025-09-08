@@ -65,7 +65,7 @@ class InventoryLogController extends Controller
             // If no branch context exists (e.g., admin with no branches), show no logs.
             $query->whereRaw('1 = 0');
         }
-
+ //sd
         // Apply action filtering
         $actionFilter = $request->input('action');
         if ($actionFilter && $actionFilter !== 'all') {

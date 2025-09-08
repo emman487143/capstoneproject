@@ -11,7 +11,7 @@ enum PortionStatus: string
     // Specific adjustment reasons
     case SPOILED = 'spoiled';   // Discarded due to spoilage/expiration
     case WASTED = 'wasted';     // Discarded during production/handling
-    case STOLEN = 'stolen';     // Confirmed theft (with evidence)
+    case STOLEN = 'stolen';     // Confisrmed theft (with evidence)
     case MISSING = 'missing';   // Cannot be accounted for (no evidence of theft)
     case DAMAGED = 'damaged';   // Partially damaged but potentially usable
     case EXPIRED = 'expired';   // No longer valid for use

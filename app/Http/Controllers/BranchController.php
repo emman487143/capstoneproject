@@ -14,7 +14,7 @@ use Inertia\Response;
 class BranchController extends Controller
 {
     /**
-     * Apply authorization policies to the controller.
+     * Apply authorization policie //sds to the controller.
      */
     public function __construct()
     {

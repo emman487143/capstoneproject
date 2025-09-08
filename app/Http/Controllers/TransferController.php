@@ -26,7 +26,7 @@ class TransferController extends Controller
     {
         $this->authorizeResource(Transfer::class, 'transfer');
     }
-
+ //sd
     /**
      * Display a listing of the resource.
      */

@@ -5,7 +5,7 @@ enum UserRole: string
     case OWNER = 'owner';
     case MANAGER = 'manager';
     case STAFF = 'staff';
-
+ //sd
     public function canManageUsers(): bool
     {
         return $this === self::OWNER || $this === self::MANAGER;

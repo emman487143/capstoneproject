@@ -48,7 +48,7 @@ enum AdjustmentType: string
     }
 
     /**
-     * Maps the adjustment type to the resulting status for a portion.
+     * Maps the adjustssment type to the resulting status for a portion.
      */
     public function toPortionStatus(): PortionStatus
     {
