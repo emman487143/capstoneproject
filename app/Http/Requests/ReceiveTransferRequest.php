@@ -30,20 +30,6 @@ class ReceiveTransferRequest extends FormRequest
             'items' => ['required', 'array'],
             'items.*.id' => ['required', 'integer', Rule::exists('transfer_items', 'id')->where('transfer_id', $this->route('transfer')->id)],
             'items.*.reception_status' => ['required', Rule::enum(TransferItemStatus::class)],
-            'items.*.received_quantity' => [
-                'nullable',
-                'numeric',
-                'min:0',
-                // The received quantity cannot exceed the quantity that was originally sent.
-                function ($attribute, $value, $fail) {
-                    $index = explode('.', $attribute)[1];
-                    $itemData = $this->input("items.{$index}");
-                    $transferItem = \App\Models\TransferItem::find($itemData['id']);
-                    if ($transferItem && $value > $transferItem->quantity) {
-                        $fail("The received quantity for item #{$transferItem->inventory_item_id} cannot exceed the sent quantity of {$transferItem->quantity}.");
-                    }
-                },
-            ],
             'items.*.reception_notes' => ['nullable', 'string', 'max:1000'],
         ];
     }

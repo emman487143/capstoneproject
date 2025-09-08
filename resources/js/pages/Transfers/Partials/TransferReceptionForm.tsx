@@ -28,6 +28,7 @@ type ReceptionItemData = {
     sent_quantity: number;
     unit: string;
     batch_number: string;
+    batch_label: string; // Add batch label for consistency
     product_id: number;
     // Track if item is checked in checklist
     checked: boolean;
@@ -56,6 +57,7 @@ export default function TransferReceptionForm({ transfer }: Props) {
                 ? item.inventory_item.unit
                 : item.inventory_item.unit.name,
             batch_number: item.inventory_batch.batch_number.toString(),
+            batch_label: item.inventory_batch.label, // Add batch label for consistency
             product_id: item.inventory_item.id,
             checked: true, // Default to checked (received)
         }));
@@ -308,11 +310,9 @@ export default function TransferReceptionForm({ transfer }: Props) {
                                                                         <span className="font-medium text-sm">
                                                                             Batch #{item.batch_number}
                                                                         </span>
-                                                                        {isByPortion && (
-                                                                            <Badge variant="outline" className="font-mono text-xs">
-                                                                                {portion.label}
-                                                                            </Badge>
-                                                                        )}
+                                                                        <Badge variant="outline" className="font-mono text-xs">
+                                                                            {isByPortion ? portion.label : item.batch_label}
+                                                                        </Badge>
                                                                     </div>
                                                                     <span className="text-xs text-muted-foreground">
                                                                         {item.sent_quantity} {item.unit}
@@ -341,28 +341,7 @@ export default function TransferReceptionForm({ transfer }: Props) {
 
                                                     {isExpanded && (
                                                         <div className="px-4 pb-4 pt-1 border-t bg-muted/30">
-                                                            {!isByPortion && (
-                                                                <div className="mb-3">
-                                                                    <Label htmlFor={`quantity-${item.id}`} className="text-xs">
-                                                                        Quantity Received
-                                                                    </Label>
-                                                                    <div className="flex items-center">
-                                                                        <Input
-                                                                            id={`quantity-${item.id}`}
-                                                                            type="number"
-                                                                            step="0.01"
-                                                                            value={item.received_quantity}
-                                                                            onChange={(e) => handleQuantityChange(item.id, e.target.value)}
-                                                                            disabled={processing || !item.checked}
-                                                                            max={item.sent_quantity}
-                                                                            min="0"
-                                                                            className="max-w-[120px]"
-                                                                        />
-                                                                        <span className="ml-2 text-sm">{item.unit}</span>
-                                                                    </div>
-                                                                    <InputError message={getNestedError(`${errorPath}.received_quantity`)} className="mt-1" />
-                                                                </div>
-                                                            )}
+                                                            {/* The quantity input is now removed to simplify the process. */}
 
                                                             <div>
                                                                 <Label htmlFor={`notes-${item.id}`} className="text-xs">Notes</Label>

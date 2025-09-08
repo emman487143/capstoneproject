@@ -13,20 +13,19 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 
 interface IndexPageProps {
-    transfers: PaginatedResponse<Transfer>;
+    pendingTransfers: Transfer[];
+    historyTransfers: PaginatedResponse<Transfer>;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Transfers', href: route('inventory.transfers.index') },
 ];
 
-export default function Index({ transfers }: IndexPageProps) {
+export default function Index({ pendingTransfers, historyTransfers }: IndexPageProps) {
     // Properly type the page props to access auth
     const { auth } = usePage<{ auth: Auth }>().props;
 
-    // Separate pending and completed transfers
-    const pendingTransfers = transfers.data.filter(t => t.status === 'pending');
-    const historyTransfers = transfers.data.filter(t => t.status !== 'pending');
+    // Data is now pre-separated by the controller, so no local filtering is needed.
 
     // Handle quick receive action
     const handleQuickReceive = (transferId: number) => {
@@ -51,7 +50,7 @@ export default function Index({ transfers }: IndexPageProps) {
     };
 
     usePoll(10000, {
-            only: ['transfers'],
+            only: ['pendingTransfers', 'historyTransfers'],
       onStart() {
           console.log('checking update')
       },
@@ -248,8 +247,8 @@ export default function Index({ transfers }: IndexPageProps) {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {historyTransfers.length > 0 ? (
-                                        historyTransfers.map((transfer) => (
+                                    {historyTransfers.data.length > 0 ? (
+                                        historyTransfers.data.map((transfer) => (
                                             <TableRow
                                                 key={transfer.id}
                                                 className="cursor-pointer"
@@ -267,14 +266,14 @@ export default function Index({ transfers }: IndexPageProps) {
                                             </TableRow>
                                         ))
                                     ) : (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="h-24 text-center">
-                                                <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                                    <Package className="h-8 w-8" />
-                                                    <span>No completed transfers found.</span>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="h-24 text-center">
+                                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                                <Package className="h-8 w-8" />
+                                                <span>No completed transfers found.</span>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
                                     )}
                                 </TableBody>
                             </Table>
@@ -282,8 +281,8 @@ export default function Index({ transfers }: IndexPageProps) {
 
                         {/* Mobile Card View */}
                         <div className="md:hidden space-y-4">
-                            {historyTransfers.length > 0 ? (
-                                historyTransfers.map((transfer) => (
+                            {historyTransfers.data.length > 0 ? (
+                                historyTransfers.data.map((transfer) => (
                                     <div
                                         key={transfer.id}
                                         className="border rounded-lg p-4 space-y-3 cursor-pointer hover:bg-accent/50 transition-colors"
@@ -319,7 +318,7 @@ export default function Index({ transfers }: IndexPageProps) {
                     </CardContent>
                 </Card>
 
-                {transfers.links && <Pagination links={transfers.links} />}
+                {historyTransfers.links && <Pagination links={historyTransfers.links} />}
             </div>
         </AppLayout>
     );

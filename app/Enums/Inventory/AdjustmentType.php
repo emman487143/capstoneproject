@@ -23,7 +23,7 @@ enum AdjustmentType: string
     }
 
     /**
-     * Determines if this adjustment type requires a reason.
+     * Determines if sthis adjustment type requires a reason.
      */
     public function requiresReason(): bool
     {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Transfers\TransferStatus;
 use App\Models\Branch;
 use App\Models\InventoryBatch;
 use App\Models\InventoryItem;
@@ -26,32 +27,42 @@ class TransferController extends Controller
     {
         $this->authorizeResource(Transfer::class, 'transfer');
     }
- //sd
+
     /**
      * Display a listing of the resource.
      */
-    public function index(): Response
+   public function index()
     {
         $user = Auth::user();
-        $query = Transfer::query()
-            ->with(['sourceBranch:id,name', 'destinationBranch:id,name', 'sendingUser:id,name'])
-            ->latest('sent_at');
+        $userBranchId = $user->employee?->branch_id;
 
-        // Scope transfers to the user's branch unless they are an admin or owner
-        if (!$user->is_admin && $user->role !== 'owner') {
-            if ($user->employee?->branch_id) {
-                $query->where(function ($q) use ($user) {
-                    $q->where('source_branch_id', $user->employee->branch_id)
-                      ->orWhere('destination_branch_id', $user->employee->branch_id);
-                });
-            } else {
-                // A regular user without a branch sees no transfers
-                $query->whereRaw('1 = 0');
-            }
-        }
+        // Eager load relationships for efficiency
+        $relations = ['sourceBranch', 'destinationBranch', 'sendingUser', 'receivingUser'];
+
+        // 1. Get all pending transfers relevant to the user's branch(es). Non-paginated.
+        $pendingTransfers = Transfer::with($relations)
+            ->where('status', TransferStatus::PENDING)
+            ->when($userBranchId && !$user->is_admin, function ($query) use ($userBranchId) {
+                $query->where('source_branch_id', $userBranchId)
+                    ->orWhere('destination_branch_id', $userBranchId);
+            })
+            ->latest('sent_at')
+            ->get();
+
+        // 2. Get a paginated list of all historical transfers.
+        $historyTransfers = Transfer::with($relations)
+            ->where('status', '!=', TransferStatus::PENDING)
+            ->when($userBranchId && !$user->is_admin, function ($query) use ($userBranchId) {
+                $query->where('source_branch_id', $userBranchId)
+                    ->orWhere('destination_branch_id', $userBranchId);
+            })
+            ->latest('sent_at')
+            ->paginate(10);
+
 
         return Inertia::render('Transfers/Index', [
-            'transfers' => $query->paginate(15)->withQueryString(),
+            'pendingTransfers' => $pendingTransfers,
+            'historyTransfers' => $historyTransfers,
         ]);
     }
 

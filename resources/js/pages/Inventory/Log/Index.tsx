@@ -36,17 +36,31 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const actionBadgeClasses: Record<string, string> = {
-    batch_created: 'bg-blue-500',
-    portions_created: 'bg-sky-500',
-    deducted_for_sale: 'bg-green-500',
-    adjustment_waste: 'bg-red-500',
-    adjustment_spoilage: 'bg-orange-500',
-    adjustment_theft: 'bg-purple-600',
-    adjustment_other: 'bg-gray-500',
-    portion_restored: 'bg-emerald-500',
-    transfer_initiated: 'bg-yellow-500 text-black',
-    transfer_received: 'bg-yellow-400 text-black',
-    batch_count_corrected: 'bg-blue-600',
+    // Greens for additions/sales
+    batch_created: 'bg-green-600 hover:bg-green-600/90',
+    deducted_for_sale: 'bg-green-500 hover:bg-green-500/90',
+    portion_restored: 'bg-emerald-500 hover:bg-emerald-500/90',
+    quantity_restored: 'bg-emerald-600 hover:bg-emerald-600/90',
+    batch_count_corrected: 'bg-sky-600 hover:bg-sky-600/90',
+
+    // Reds & Oranges for negative adjustments
+    adjustment_waste: 'bg-red-500 hover:bg-red-500/90',
+    adjustment_spoilage: 'bg-orange-500 hover:bg-orange-500/90',
+    adjustment_theft: 'bg-red-700 hover:bg-red-700/90',
+    adjustment_damaged: 'bg-orange-600 hover:bg-orange-600/90',
+    adjustment_missing: 'bg-purple-600 hover:bg-purple-600/90',
+    adjustment_expired: 'bg-amber-600 hover:bg-amber-600/90',
+    adjustment_staff_meal: 'bg-pink-500 hover:bg-pink-500/90',
+    adjustment_other: 'bg-gray-500 hover:bg-gray-500/90',
+
+    // Yellows/Blues for transfers
+    transfer_initiated: 'bg-blue-500 hover:bg-blue-500/90',
+    transfer_received: 'bg-blue-400 hover:bg-blue-400/90 text-blue-950',
+    transfer_cancelled: 'bg-yellow-500 hover:bg-yellow-500/90 text-yellow-950',
+    transfer_rejected: 'bg-yellow-600 hover:bg-yellow-600/90 text-yellow-950',
+
+    // Deprecated/Internal
+    portions_created: 'bg-sky-500 hover:bg-sky-500/90',
 };
 
 export default function Index({ logs, branches, currentBranch, filters }: IndexPageProps) {
@@ -141,16 +155,22 @@ usePoll(10000, {
                                     <SelectContent>
                                         <SelectItem value="all">All Actions</SelectItem>
                                         <SelectItem value="batch_created">Batch Created</SelectItem>
-                                        <SelectItem value="portions_created">Portions Created</SelectItem>
                                         <SelectItem value="deducted_for_sale">Deducted for Sale</SelectItem>
-                                        <SelectItem value="adjustment_waste">Adjustment: Waste</SelectItem>
-                                        <SelectItem value="adjustment_spoilage">Adjustment: Spoilage</SelectItem>
-                                        <SelectItem value="adjustment_theft">Adjustment: Theft</SelectItem>
-                                        <SelectItem value="adjustment_other">Adjustment: Other</SelectItem>
+                                        <SelectItem value="batch_count_corrected">Count Corrected</SelectItem>
                                         <SelectItem value="portion_restored">Portion Restored</SelectItem>
+                                        <SelectItem value="quantity_restored">Quantity Restored</SelectItem>
+                                        <SelectItem value="adjustment_waste">Adj: Waste</SelectItem>
+                                        <SelectItem value="adjustment_spoilage">Adj: Spoilage</SelectItem>
+                                        <SelectItem value="adjustment_damaged">Adj: Damaged</SelectItem>
+                                        <SelectItem value="adjustment_expired">Adj: Expired</SelectItem>
+                                        <SelectItem value="adjustment_missing">Adj: Missing</SelectItem>
+                                        <SelectItem value="adjustment_theft">Adj: Theft</SelectItem>
+                                        <SelectItem value="adjustment_staff_meal">Adj: Staff Meal</SelectItem>
+                                        <SelectItem value="adjustment_other">Adj: Other</SelectItem>
                                         <SelectItem value="transfer_initiated">Transfer Initiated</SelectItem>
                                         <SelectItem value="transfer_received">Transfer Received</SelectItem>
-                                        <SelectItem value="batch_count_corrected">Count Corrected</SelectItem>
+                                        <SelectItem value="transfer_cancelled">Transfer Cancelled</SelectItem>
+                                        <SelectItem value="transfer_rejected">Transfer Rejected</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -234,7 +254,7 @@ usePoll(10000, {
                                                         <Badge
                                                             className={cn(
                                                                 'text-white whitespace-nowrap',
-                                                                actionBadgeClasses[log.action] || 'bg-gray-500'
+                                                                actionBadgeClasses[log.action] || 'bg-gray-500 hover:bg-gray-500/90'
                                                             )}
                                                         >
                                                             {log.action.replace(/_/g, ' ')}
@@ -242,53 +262,39 @@ usePoll(10000, {
                                                     </TableCell>
                                                     <TableCell>
                                                         <LogDetail
-                                                            action={log.action}
                                                             details={
                                                                 log.formatted_details || {
-                                                                    title: '',
-                                                                    description: '',
                                                                     quantityInfo: '',
-                                                                    reason: '',
+                                                                    description: '',
                                                                     metadata: [],
                                                                 }
                                                             }
-                                                            rawDetails={log.parsed_details || (typeof log.details === 'string' ? JSON.parse(log.details) : log.details)}
                                                         />
                                                     </TableCell>
                                                     <TableCell>{log.user?.name || 'System'}</TableCell>
                                                     <TableCell className="whitespace-nowrap">
-                                                        {format(new Date(log.created_at), 'MMM d, yyyy')}
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {format(new Date(log.created_at), 'h:mm a')}
-                                                        </div>
+                                                        {format(new Date(log.created_at), 'MMM dd, yyyy HH:mm')}
                                                     </TableCell>
                                                 </TableRow>
                                             );
                                         })
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={5} className="h-24 text-center">
-                                                <div className="text-muted-foreground">No log entries found for this branch.</div>
+                                            <TableCell colSpan={5} className="text-center py-4">
+                                                No logs found for the selected filters.
                                             </TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>
                             </Table>
                         </div>
-
-                        {/* Responsive mobile view for smaller screens */}
-                        <div className="md:hidden mt-4">
-                            <p className="text-sm text-muted-foreground mb-2">
-                                For best experience viewing detailed logs, please rotate your device to landscape mode or use a
-                                larger screen.
-                            </p>
-                        </div>
                     </CardContent>
                 </Card>
                 {logs.last_page > 1 && (
-                    <div className="mt-6 flex justify-center">
-                        <Pagination links={logs.links} />
-                    </div>
+                    <Pagination
+                        className="mt-6 flex justify-center"
+                        links={logs.links}
+                    />
                 )}
             </div>
         </AppLayout>

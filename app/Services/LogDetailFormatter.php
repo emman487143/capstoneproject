@@ -4,461 +4,163 @@ namespace App\Services;
 
 use App\Enums\Inventory\LogAction;
 use App\Models\InventoryLog;
-use App\Models\Sale;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class LogDetailFormatter
 {
-    /**
-     * Format the details of an inventory log entry for display.
-     *
-     * @param InventoryLog $log
-     * @return array
-     */
     public function format(InventoryLog $log): array
     {
-        // CRITICAL FIX: Ensure proper JSON decoding by handling all scenarios
-        $rawDetails = $log->details;
-        $details = null;
+        $details = $log->details ?? [];
+        $item = $log->batch?->inventoryItem ?? $log->portion?->batch?->inventoryItem;
+        $itemUnit = $item?->unit ?? 'units';
 
-        if (is_string($rawDetails)) {
-            try {
-                $details = json_decode($rawDetails, true);
-            } catch (\Throwable $e) {
-                Log::error('Error decoding log details JSON: ' . $e->getMessage(), [
-                    'log_id' => $log->id,
-                    'raw_details' => $rawDetails
-                ]);
-                $details = [];
-            }
-        } elseif (is_array($rawDetails)) {
-            $details = $rawDetails;
-        } else {
-            $details = [];
-        }
-
-        // Base structure for formatted details
-        $formatted = [
-            'title' => '',
-            'description' => '',
+        $base = [
             'quantityInfo' => '',
-            'reason' => $details['reason'] ?? null,
+            'description' => '',
             'metadata' => [],
-            'tracking_type' => null, // Add this line to store tracking type
         ];
 
-        // Load necessary relationships if not already loaded
-        if (!$log->relationLoaded('batch') && $log->inventory_batch_id) {
-            $log->load('batch.inventoryItem');
+        return match ($log->action) {
+            LogAction::DEDUCTED_FOR_SALE => $this->formatDeductedForSale($log, $details, $itemUnit, $base),
+            LogAction::BATCH_CREATED => $this->formatBatchCreated($log, $details, $itemUnit, $base),
+            LogAction::BATCH_COUNT_CORRECTED => $this->formatBatchCountCorrected($log, $details, $itemUnit, $base),
+            LogAction::TRANSFER_INITIATED, LogAction::TRANSFER_RECEIVED, LogAction::TRANSFER_CANCELLED, LogAction::TRANSFER_REJECTED => $this->formatTransfer($log, $details, $itemUnit, $base),
+            LogAction::PORTION_RESTORED, LogAction::QUANTITY_RESTORED => $this->formatRestoration($log, $details, $itemUnit, $base),
+            default => $this->formatAdjustment($log, $details, $itemUnit, $base),
+        };
+    }
+
+    private function addMetadata(array &$base, string $label, ?string $value): void
+    {
+        if ($value !== null && $value !== '') {
+            $base['metadata'][] = ['label' => $label, 'value' => $value];
         }
-        if (!$log->relationLoaded('portion') && $log->batch_portion_id) {
-            $log->load('portion.batch.inventoryItem');
+    }
+
+    private function formatDeductedForSale(InventoryLog $log, array $details, string $itemUnit, array $base): array
+    {
+        if ($log->portion) {
+            $base['quantityInfo'] = '↓ -1 portion';
+        } else {
+            $qty = $details['quantity_deducted'] ?? $details['quantity'] ?? 0;
+            $base['quantityInfo'] = sprintf('↓ -%s %s', number_format((float)$qty, 2), $itemUnit);
+            // REMOVED: The batch label is already shown in the 'Item' column.
         }
 
-        // Get item info regardless of where it comes from
-        $item = $log->batch->inventoryItem ?? $log->portion->batch->inventoryItem ?? null;
-        $itemName = $item?->name ?? 'Unknown Item';
-        $itemUnit = $details['unit'] ?? $item?->unit ?? 'unit(s)';
+        $base['description'] = isset($details['product_name']) ? "Used in {$details['product_name']}" : 'Used in sale';
+        $this->addMetadata($base, 'Sale ID', $log->sale_id ? "#S-{$log->sale_id}" : null);
 
-        // Add tracking type to formatted details
-        $formatted['tracking_type'] = $item?->tracking_type ?? null;
+        return $base;
+    }
+
+    private function formatAdjustment(InventoryLog $log, array $details, string $itemUnit, array $base): array
+    {
+        $actionName = Str::of($log->action->value)->replace('adjustment_', '')->replace('_', ' ')->__toString();
+        $base['description'] = "Marked as {$actionName}";
+
+        if ($log->portion) {
+            $base['quantityInfo'] = '↓ -1 portion';
+            // REMOVED: The portion label is already shown in the 'Item' column.
+        } else {
+            $qty = $details['quantity_change'] ?? 0;
+            $base['quantityInfo'] = sprintf('↓ -%s %s', number_format(abs((float)$qty), 2), $itemUnit);
+            $this->addMetadata($base, 'Before', isset($details['old_quantity']) ? "{$details['old_quantity']} {$itemUnit}" : null);
+            $this->addMetadata($base, 'After', isset($details['new_quantity']) ? "{$details['new_quantity']} {$itemUnit}" : null);
+        }
+
+        $this->addMetadata($base, 'Reason', $details['reason'] ?? null);
+        if ($log->action === LogAction::ADJUSTMENT_EXPIRED) {
+            $this->addMetadata($base, 'Expiration Date', $log->batch?->expiration_date?->format('M d, Y'));
+        }
+
+        return $base;
+    }
+
+    private function formatTransfer(InventoryLog $log, array $details, string $itemUnit, array $base): array
+    {
+        // CORRECTED: Always use the absolute float value of the quantity.
+        // The direction (positive/negative) is determined by the log action itself.
+        $qty = abs((float)($details['quantity_change'] ?? 1));
+        $transferId = $details['transfer_id'] ?? null;
+
+        // Format the quantity differently for portions vs. measures for clarity.
+        $formattedQty = $log->portion ? $qty : number_format($qty, 2);
+        $unit = $log->portion ? 'portion' : $itemUnit;
+
 
         switch ($log->action) {
-            case LogAction::ADJUSTMENT_WASTE->value:
-            case LogAction::ADJUSTMENT_SPOILAGE->value:
-            case LogAction::ADJUSTMENT_THEFT->value:
-            case LogAction::ADJUSTMENT_OTHER->value:
-                // Handle all adjustments consistently
-                $this->formatDetailedAdjustment($formatted, $log, $itemName, $itemUnit, $details);
+            case LogAction::TRANSFER_INITIATED:
+                $base['quantityInfo'] = sprintf('↓ -%s %s', $formattedQty, $unit);
+                $base['description'] = 'Transferred to ' . ($details['destination_branch_name'] ?? 'another branch');
                 break;
-
-            case LogAction::BATCH_CREATED->value:
-                $formatted['title'] = 'Batch Created';
-                $quantity = $details['quantity_received'] ?? $log->batch?->quantity_received ?? 'Unknown';
-                $formatted['description'] = "{$quantity} {$itemUnit} of {$itemName}";
-                $formatted['quantityInfo'] = "+{$quantity} {$itemUnit}";
-
-                // Add batch details
-                if ($log->batch) {
-                    // Add label if available, otherwise fallback to batch number
-                    if ($log->batch->label) {
-                        $formatted['metadata'][] = [
-                            'label' => 'Batch',
-                            'value' => $log->batch->label
-                        ];
-                    } else {
-                        $formatted['metadata'][] = [
-                            'label' => 'Batch #',
-                            'value' => $log->batch->batch_number
-                        ];
-                    }
-
-                    if ($log->batch->source) {
-                        $formatted['metadata'][] = [
-                            'label' => 'Source',
-                            'value' => $log->batch->source
-                        ];
-                    }
-
-                    if ($log->batch->expiration_date) {
-                        $formatted['metadata'][] = [
-                            'label' => 'Expiration',
-                            'value' => $log->batch->expiration_date->format('M d, Y')
-                        ];
-                    }
-                }
+            case LogAction::TRANSFER_RECEIVED:
+                $base['quantityInfo'] = sprintf('↑ +%s %s', $formattedQty, $unit);
+                $newBatchLabel = $log->batch?->label ? "as {$log->batch->label}" : '';
+                $base['description'] = "Stock received and re-batched {$newBatchLabel} at destination.";
+                $this->addMetadata($base, 'Reception Notes', $details['notes'] ?? null);
+                // REMOVED: The new batch label is already shown in the 'Item' column for this log entry.
                 break;
-
-            case LogAction::DEDUCTED_FOR_SALE->value:
-                // Get product info if available
-                $productName = $details['product_name'] ?? null;
-                $saleId = $log->sale_id ?? $details['sale_id'] ?? null;
-
-                // Check if this is a portion or measure tracked item
-                if ($log->portion) {
-                    // Portion-based item (already works)
-                    $description = "Deducted For Sale for portion ";
-                    if ($log->portion?->label) {
-                        $description .= $log->portion->label;
-
-                        $formatted['metadata'][] = [
-                            'label' => 'Portion',
-                            'value' => $log->portion->label
-                        ];
-                    } else {
-                        $description .= "of {$itemName}";
-                    }
-                    $formatted['quantityInfo'] = "-1 {$itemUnit}";
-                } else {
-                    // Measure-based item - check multiple possible keys for quantity
-                    $qtyDeducted = $details['quantity_deducted'] ?? $details['quantity'] ?? $details['quantity_change'] ?? null;
-
-                    // Make sure we have a quantity to display
-                    if ($qtyDeducted) {
-                        $description = "{$qtyDeducted} {$itemUnit} of {$itemName}";
-                        $formatted['quantityInfo'] = "-{$qtyDeducted} {$itemUnit}";
-                        $formatted['has_quantity'] = true;
-                    } else {
-                        $description = "{$itemName}";
-                        $formatted['has_quantity'] = false;
-                    }
-
-                    // Add batch label as metadata if available
-                    if ($log->batch) {
-                        if ($log->batch->label) {
-                            $formatted['metadata'][] = [
-                                'label' => 'Batch',
-                                'value' => $log->batch->label
-                            ];
-                        } else {
-                            $formatted['metadata'][] = [
-                                'label' => 'Batch',
-                                'value' => "#{$log->batch->batch_number}"
-                            ];
-                        }
-                    }
-                }
-
-                // Add sale reference if available
-                if ($saleId) {
-                    $description .= " for Sale #{$saleId}";
-                }
-
-                // Add product information if available
-                if ($productName) {
-                    $description .= " ({$productName})";
-                }
-
-                $formatted['description'] = $description;
+            case LogAction::TRANSFER_CANCELLED:
+                $base['quantityInfo'] = sprintf('↑ +%s %s', $formattedQty, $unit);
+                $subject = $log->portion ? 'Portion' : 'Quantity';
+                $base['description'] = "{$subject} returned to stock after transfer cancellation.";
+                $this->addMetadata($base, 'Reason', 'Transfer cancelled by sender');
                 break;
-
-            case LogAction::TRANSFER_INITIATED->value:
-                $formatted['title'] = 'Transfer Initiated';
-
-                // Source and destination
-                $sourceBranch = $details['source_branch'] ?? $log->batch?->branch?->name ?? 'Unknown Branch';
-                $destBranch = $details['destination_branch'] ?? 'Another Branch';
-                $formatted['description'] = "From {$sourceBranch} to {$destBranch}";
-
-                // Transfer ID and item count
-                $transferId = $details['transfer_id'] ?? null;
-                if ($transferId) {
-                    $formatted['metadata'][] = [
-                        'label' => 'Transfer #',
-                        'value' => $transferId
-                    ];
-                }
-
-                // Items count
-                $items = $details['items'] ?? [];
-                $itemCount = is_array($items) ? count($items) : 1;
-                $formatted['quantityInfo'] = "{$itemCount} " . ($itemCount == 1 ? 'item' : 'items');
+            case LogAction::TRANSFER_REJECTED:
+                $base['quantityInfo'] = sprintf('↑ +%s %s', $formattedQty, $unit);
+                $subject = $log->portion ? 'Portion' : 'Quantity';
+                $base['description'] = "{$subject} returned to stock after rejection.";
+                $this->addMetadata($base, 'Rejection Reason', $details['notes'] ?? 'Item rejected by receiver');
                 break;
-
-            case LogAction::TRANSFER_RECEIVED->value:
-                $formatted['title'] = 'Transfer Received';
-
-                // Source and destination
-                $sourceBranch = $details['source_branch'] ?? 'Another Branch';
-                $destBranch = $details['destination_branch'] ?? $log->batch?->branch?->name ?? 'Current Branch';
-                $formatted['description'] = "From {$sourceBranch} to {$destBranch}";
-
-                // Transfer ID
-                $transferId = $details['transfer_id'] ?? null;
-                if ($transferId) {
-                    $formatted['metadata'][] = [
-                        'label' => 'Transfer #',
-                        'value' => $transferId
-                    ];
-                }
-
-                // Quantity received
-                $qtyChange = $details['quantity_change'] ?? '1';
-                $formatted['quantityInfo'] = "+{$qtyChange} {$itemUnit}";
-                break;
-
-            case LogAction::TRANSFER_CANCELLED->value:
-                $formatted['title'] = 'Transfer Cancelled';
-
-                $transferId = $details['transfer_id'] ?? null;
-                $formatted['description'] = $transferId ? "Transfer #{$transferId} cancelled" : "Transfer cancelled";
-
-                // Returned quantity
-                $qtyChange = $details['quantity_change'] ?? null;
-                if ($qtyChange) {
-                    $formatted['quantityInfo'] = "+{$qtyChange} {$itemUnit} returned";
-                }
-
-                // Additional notes
-                $notes = $details['notes'] ?? null;
-                if ($notes) {
-                    $formatted['metadata'][] = [
-                        'label' => 'Notes',
-                        'value' => $notes
-                    ];
-                }
-                break;
-
-            case LogAction::BATCH_COUNT_CORRECTED->value:
-                $formatted['title'] = 'Count Corrected';
-
-                // Quantity change
-                $oldQty = $details['old_quantity'] ?? null;
-                $newQty = $details['new_quantity'] ?? null;
-
-                if ($oldQty !== null && $newQty !== null) {
-                    $formatted['description'] = "Updated from {$oldQty} to {$newQty} {$itemUnit}";
-                    $diff = $newQty - $oldQty;
-                    $sign = $diff >= 0 ? '+' : '';
-                    $formatted['quantityInfo'] = "{$sign}{$diff} {$itemUnit}";
-                } else {
-                    $formatted['description'] = "Count manually adjusted";
-                }
-                break;
-
-            case LogAction::PORTION_RESTORED->value:
-                $formatted['title'] = 'Portion Restored';
-
-                if ($log->portion) {
-                    $formatted['description'] = "Restored portion {$log->portion->label}";
-                }
-
-                $originalAdjustment = $details['original_adjustment'] ?? null;
-                if ($originalAdjustment) {
-                    $originalAction = $originalAdjustment['action'] ?? 'Unknown';
-                    $originalReason = $originalAdjustment['reason'] ?? 'Unknown';
-
-                    $formatted['metadata'][] = [
-                        'label' => 'Original Issue',
-                        'value' => $this->formatActionName($originalAction)
-                    ];
-
-                    $formatted['metadata'][] = [
-                        'label' => 'Original Reason',
-                        'value' => $originalReason
-                    ];
-                }
-
-                $formatted['quantityInfo'] = "+1 {$itemUnit}";
-                break;
-
-            case LogAction::QUANTITY_RESTORED->value:
-                $formatted['title'] = 'Quantity Restored';
-                $formatted['description'] = sprintf(
-                    '%s restored %.2f %s to this batch.',
-                    $log->user->name,
-                    $log->details['quantity_restored'],
-                    $log->batch->inventoryItem->unit
-                );
-
-                // Add reason as metadata
-                $formatted['metadata'][] = [
-                    'label' => 'Reason',
-                    'value' => $log->details['reason'] ?? 'Not specified'
-                ];
-
-                // Add details about original adjustments
-                if (isset($log->details['original_adjustments']) && count($log->details['original_adjustments']) > 0) {
-                    $formatted['metadata'][] = [
-                        'label' => 'Restored From',
-                        'value' => count($log->details['original_adjustments']) . ' previous adjustments'
-                    ];
-                }
-
-                $formatted['icon'] = 'refresh-cw';
-                $formatted['iconColor'] = 'text-green-500';
-                break;
-
-            default:
-                $formatted['title'] = $this->formatActionName($log->action);
-                $formatted['description'] = $this->generateFallbackDescription($log, $itemName);
         }
 
-        return $formatted;
+        $this->addMetadata($base, 'Transfer ID', $transferId ? "#T-{$transferId}" : null);
+        return $base;
     }
 
-/**
- * Format detailed adjustment information with comprehensive before/after quantities
- *
- * @param array &$formatted The formatted output array
- * @param InventoryLog $log The log entry
- * @param string $itemName The item name
- * @param string $itemUnit The item unit
- * @param array $details The details from the log
- * @return void
- */
-private function formatDetailedAdjustment(array &$formatted, InventoryLog $log, string $itemName, string $itemUnit, array $details): void
-{
-    // Extract action type for display
-    $actionString = is_object($log->action) ? $log->action->value : $log->action;
-    $actionType = str_replace('adjustment_', '', $actionString);
-
-    // Get batch info
-    $batchInfo = '';
-    if ($log->batch) {
-        $batchInfo = $log->batch->label
-            ? "({$log->batch->label})"
-            : "(Batch #{$log->batch->batch_number})";
+    private function formatBatchCreated(InventoryLog $log, array $details, string $itemUnit, array $base): array
+    {
+        $qty = $details['quantity_received'] ?? 0;
+        $base['quantityInfo'] = sprintf('↑ +%s %s', number_format((float)$qty, 2), $itemUnit);
+        $base['description'] = 'Received new stock';
+        $this->addMetadata($base, 'Source', $log->batch?->source);
+        $this->addMetadata($base, 'Expires', $log->batch?->expiration_date?->format('M d, Y'));
+        return $base;
     }
 
-    // CRITICAL FIX: For portion-based adjustments (like spoilage adjustments)
-    if ($log->portion || isset($details['portion_label'])) {
-        $portionLabel = $log->portion?->label ?? $details['portion_label'] ?? null;
+    private function formatBatchCountCorrected(InventoryLog $log, array $details, string $itemUnit, array $base): array
+    {
+        $oldQty = $details['old_quantity'] ?? 0;
+        $newQty = $details['new_quantity'] ?? 0;
+        $diff = (float)$newQty - (float)$oldQty;
+        $sign = $diff >= 0 ? '↑ +' : '↓ ';
+        $base['quantityInfo'] = sprintf('%s%s %s', $sign, number_format(abs($diff), 2), $itemUnit);
+        $base['description'] = 'Manual count correction';
+        $this->addMetadata($base, 'Reason', $details['reason'] ?? null);
+        $this->addMetadata($base, 'Before', "{$oldQty} {$itemUnit}");
+        $this->addMetadata($base, 'After', "{$newQty} {$itemUnit}");
+        return $base;
+    }
 
-        if ($portionLabel) {
-            // For portion logs, always show the quantity as 1 since that's the standard unit
-            $formatted['quantityInfo'] = "-1 {$itemUnit}";
-            $formatted['has_quantity'] = true;
-
-            // Include portion identifier in description
-            if (!isset($formatted['description']) || empty($formatted['description'])) {
-                $formatted['description'] = "Adjustment of portion {$portionLabel}";
+    private function formatRestoration(InventoryLog $log, array $details, string $itemUnit, array $base): array
+    {
+        if ($log->action === LogAction::PORTION_RESTORED) {
+            $base['quantityInfo'] = '↑ +1 portion';
+            $base['description'] = 'Restored to inventory';
+            // REMOVED: The portion label is already shown in the 'Item' column.
+            $originalStatus = $details['original_adjustment']['action'] ?? null;
+            if ($originalStatus) {
+                $this->addMetadata($base, 'Original Status', Str::of($originalStatus)->replace('adjustment_', '')->title()->__toString());
             }
-
-            // Add portion details to metadata for better visibility
-            $formatted['metadata'][] = [
-                'label' => 'Portion',
-                'value' => $portionLabel
-            ];
+        } else { // QUANTITY_RESTORED
+            $qty = $details['quantity_restored'] ?? 0;
+            $base['quantityInfo'] = sprintf('↑ +%s %s', number_format((float)$qty, 2), $itemUnit);
+            $base['description'] = 'Quantity restored to batch';
+            // REMOVED: The batch label is already shown in the 'Item' column.
+            $this->addMetadata($base, 'Before', isset($details['before_quantity']) ? "{$details['before_quantity']} {$itemUnit}" : null);
+            $this->addMetadata($base, 'After', isset($details['after_quantity']) ? "{$details['after_quantity']} {$itemUnit}" : null);
         }
-
-        // Extract and display reason explicitly
-        if (isset($details['reason'])) {
-            $formatted['reason'] = $details['reason'];
-        }
-
-        return; // Exit early as we've handled the portion case
-    }
-
-    // For measure-tracked items, extract quantity information
-    $qty = null;
-    $direction = '-'; // Default to decrease for adjustments
-
-    // Check all possible quantity fields
-    if (isset($details['quantity_adjusted']) && ($details['quantity_adjusted'] !== null)) {
-        $qty = (float)$details['quantity_adjusted'];
-        $direction = ($details['adjustment_direction'] ?? 'decrease') === 'increase' ? '+' : '-';
-    }
-    elseif (isset($details['original_quantity']) && isset($details['new_quantity'])) {
-        $originalQty = (float)$details['original_quantity'];
-        $newQty = (float)$details['new_quantity'];
-        $qty = abs($newQty - $originalQty);
-        $direction = $newQty > $originalQty ? '+' : '-';
-    }
-    elseif (isset($details['quantity_change'])) {
-        $qty = abs((float)$details['quantity_change']);
-        $direction = (isset($details['change_direction']) && $details['change_direction'] === 'positive') ? '+' : '-';
-    }
-
-    if ($qty !== null) {
-        // Format for prominent quantity display
-        $formatted['quantityInfo'] = $direction . (string)$qty . ' ' . $itemUnit;
-        $formatted['has_quantity'] = true;
-
-        $formatted['description'] = $qty . ' ' . $itemUnit . ' of ' . $itemName . ' ' . $batchInfo;
-
-        // Add before/after quantities as metadata
-        if (isset($details['original_quantity']) && isset($details['new_quantity'])) {
-            $formatted['metadata'][] = [
-                'label' => 'Before',
-                'value' => $details['original_quantity'] . ' ' . $itemUnit
-            ];
-
-            $formatted['metadata'][] = [
-                'label' => 'After',
-                'value' => $details['new_quantity'] . ' ' . $itemUnit
-            ];
-        }
-    } else {
-        // Handle the case where we don't have quantity info
-        $formatted['description'] = "{$itemName} {$batchInfo}";
-        $formatted['has_quantity'] = false;
-    }
-
-    // Extract reason information - prioritize explicit reason field
-    $reason = $details['reason'] ?? $details['notes'] ?? $details['description'] ?? null;
-    if ($reason && strtolower($reason) !== strtolower($actionType)) {
-        $formatted['reason'] = $reason;
-    }
-}
-
-    /**
-     * Generate a fallback description for logs with minimal information
-     *
-     * @param InventoryLog $log
-     * @param string $itemName
-     * @return string
-     */
-    private function generateFallbackDescription(InventoryLog $log, string $itemName): string
-    {
-        $action = $this->formatActionName($log->action);
-
-        // For portion-specific logs
-        if ($log->portion) {
-            return "{$action} for portion {$log->portion->label}";
-        }
-
-        // For batch-specific logs
-        if ($log->batch) {
-            return "{$action} for {$itemName} (Batch #{$log->batch->batch_number})";
-        }
-
-        // Generic fallback
-        return "{$action} for {$itemName}";
-    }
-
-    /**
-     * Format action name for display by converting snake_case to Title Case.
-     * Handles both string values and LogAction enum instances.
-     *
-     * @param string|LogAction $action
-     * @return string
-     */
-    private function formatActionName(string|LogAction $action): string
-    {
-        // Convert enum to string value if needed
-        $actionString = is_object($action) ? $action->value : $action;
-
-        return ucwords(str_replace('_', ' ', $actionString));
+        $this->addMetadata($base, 'Restoration Reason', $details['restoration_reason'] ?? $details['reason'] ?? null);
+        return $base;
     }
 }

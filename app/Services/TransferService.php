@@ -140,7 +140,7 @@ $portion->batch->decrement('remaining_quantity');
     /**
      * Processes the reception of a transfer, updating all related inventory and logging all actions.
      */
-   public function receiveTransfer(Transfer $transfer, array $receptionData, User $receivingUser): Transfer
+    public function receiveTransfer(Transfer $transfer, array $receptionData, User $receivingUser): Transfer
     {
         return DB::transaction(function () use ($transfer, $receptionData, $receivingUser) {
             $transfer->update([
@@ -149,8 +149,6 @@ $portion->batch->decrement('remaining_quantity');
                 'received_at' => now(),
             ]);
 
-            // CORRECTED: Group received items by their original source batch ID before creating new inventory.
-            // This is the critical fix to prevent creating a separate new batch for each individual portion.
             $receivedItemsBySourceBatch = [];
 
             foreach ($receptionData['items'] as $itemData) {
@@ -159,58 +157,54 @@ $portion->batch->decrement('remaining_quantity');
                     continue;
                 }
 
+                $receptionStatus = TransferItemStatus::tryFrom($itemData['reception_status']);
+                // SIMPLIFIED LOGIC: Quantity is now binary—either the full amount or zero.
+                $receivedQuantity = ($receptionStatus === TransferItemStatus::RECEIVED) ? $transferItem->quantity : 0;
+
                 $transferItem->update([
-                    'reception_status' => $itemData['reception_status'],
-                    'received_quantity' => $itemData['received_quantity'] ?? 0,
+                    'reception_status' => $receptionStatus,
+                    'received_quantity' => $receivedQuantity,
                     'reception_notes' => $itemData['reception_notes'] ?? null,
                 ]);
 
-                // Handle portion-based items (already working)
+                // Handle portion-based items (updates status at source)
                 if ($transferItem->inventory_batch_portion_id) {
                     $this->finalizeOriginalPortionStatus($transfer, $transferItem, $itemData, $receivingUser);
                 }
-                // Add new code to handle by_measure rejected items
-                else if ($itemData['reception_status'] === TransferItemStatus::REJECTED->value) {
-                    // Get the original batch and return inventory to source branch
+                // Handle by_measure items (returns stock to source if rejected)
+                elseif ($receptionStatus === TransferItemStatus::REJECTED) {
                     $originalBatch = InventoryBatch::lockForUpdate()->find($transferItem->inventory_batch_id);
                     if ($originalBatch) {
                         $originalBatch->increment('remaining_quantity', $transferItem->quantity);
 
-                        // Log the rejection properly
                         InventoryLog::create([
                             'inventory_batch_id' => $transferItem->inventory_batch_id,
                             'user_id' => $receivingUser->id,
                             'action' => LogAction::TRANSFER_REJECTED,
                             'details' => [
                                 'quantity_change' => $transferItem->quantity,
-                                'notes' => $transferItem->reception_notes ?? 'Item rejected during transfer reception',
+                                'notes' => $itemData['reception_notes'] ?? 'Item rejected during transfer reception',
                                 'transfer_id' => $transfer->id,
                             ],
                         ]);
                     }
-
-                    // Skip further processing for rejected items
-                    continue;
                 }
 
-                $receivedQuantity = (float) ($itemData['received_quantity'] ?? 0);
-
-                // If the item was received, add it to our grouping array.
+                // If the item was received, add it to our grouping array for processing.
                 if ($receivedQuantity > 0) {
                     $sourceBatchId = $transferItem->inventory_batch_id;
                     if (!isset($receivedItemsBySourceBatch[$sourceBatchId])) {
                         $receivedItemsBySourceBatch[$sourceBatchId] = [
                             'items' => [],
                             'total_quantity' => 0,
+                            'notes' => [],
                         ];
                     }
                     $receivedItemsBySourceBatch[$sourceBatchId]['items'][] = $transferItem;
                     $receivedItemsBySourceBatch[$sourceBatchId]['total_quantity'] += $receivedQuantity;
-                }
-
-                $discrepancy = $transferItem->quantity - $receivedQuantity;
-                if ($discrepancy > 0) {
-                    $this->logReceptionDiscrepancy($transfer, $transferItem, $discrepancy, $receivingUser);
+                    if (!empty($itemData['reception_notes'])) {
+                        $receivedItemsBySourceBatch[$sourceBatchId]['notes'][] = $itemData['reception_notes'];
+                    }
                 }
             }
 
@@ -218,7 +212,8 @@ $portion->batch->decrement('remaining_quantity');
             foreach ($receivedItemsBySourceBatch as $group) {
                 $firstItem = $group['items'][0];
                 $totalQuantity = $group['total_quantity'];
-                $this->createReceivedInventory($transfer, $firstItem, $totalQuantity, $receivingUser);
+                $notes = implode('; ', $group['notes']);
+                $this->createReceivedInventory($transfer, $firstItem, $totalQuantity, $receivingUser, $notes);
             }
 
             return $transfer;
@@ -246,15 +241,15 @@ $portion->batch->decrement('remaining_quantity');
         // CRITICAL FIX: Increment the parent batch's quantity as the portion is returned to stock.
         $originalPortion->batch->increment('remaining_quantity');
 
-        // FIXED: Use consistent TRANSFER_REJECTED action instead of TRANSFER_CANCELLED
+        // FIXED: Use consistent TRANSFER_REJECTED action and include reception notes
         InventoryLog::create([
             'inventory_batch_id' => $originalPortion->inventory_batch_id,
             'batch_portion_id' => $originalPortion->id,
             'user_id' => $receivingUser->id,
-            'action' => LogAction::TRANSFER_REJECTED, // Changed from TRANSFER_CANCELLED
+            'action' => LogAction::TRANSFER_REJECTED,
             'details' => [
                 'quantity_change' => 1,
-                'notes' => "Portion returned to stock after rejection in Transfer #{$transfer->id}",
+                'notes' => $itemData['reception_notes'] ?? 'Portion rejected during transfer reception',
                 'transfer_id' => $transfer->id,
             ],
         ]);
@@ -264,7 +259,7 @@ $portion->batch->decrement('remaining_quantity');
     /**
      * Creates a new inventory batch at the destination, delegating to InventoryService to handle portions correctly.
      */
-    private function createReceivedInventory(Transfer $transfer, TransferItem $transferItem, float $receivedQuantity, User $receivingUser): void
+    private function createReceivedInventory(Transfer $transfer, TransferItem $transferItem, float $receivedQuantity, User $receivingUser, ?string $notes): void
     {
         $originalBatch = $transferItem->inventoryBatch;
         $inventoryService = app(InventoryService::class);
@@ -284,28 +279,11 @@ $portion->batch->decrement('remaining_quantity');
             'action' => LogAction::TRANSFER_RECEIVED,
             'details' => [
                 'quantity_change' => $receivedQuantity,
-                'source_branch' => $transfer->sourceBranch->name,
+                'source_branch_name' => $transfer->sourceBranch->name, // Corrected key
                 'transfer_id' => $transfer->id,
                 'original_source_batch_id' => $originalBatch->id,
                 'original_source_batch_number' => $originalBatch->batch_number,
-                'notes' => "Stock received and re-batched as #{$newBatch->batch_number} at destination.",
-            ],
-        ]);
-    }
-
-    /**
-     * Logs inventory adjustments for discrepancies found during reception.
-     */
-    private function logReceptionDiscrepancy(Transfer $transfer, TransferItem $transferItem, float $discrepancy, User $receivingUser): void
-    {
-        InventoryLog::create([
-            'inventory_batch_id' => $transferItem->inventory_batch_id,
-            'user_id' => $receivingUser->id,
-            'action' => LogAction::TRANSFER_CANCELLED,
-            'details' => [
-                'quantity_change' => -$discrepancy,
-                'notes' => $transferItem->reception_notes ?? 'Item missing or damaged during transfer.',
-                'transfer_id' => $transfer->id,
+                'notes' => $notes, // Add the aggregated notes to the log details
             ],
         ]);
     }

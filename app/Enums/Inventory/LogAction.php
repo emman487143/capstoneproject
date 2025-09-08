@@ -4,7 +4,7 @@ namespace App\Enums\Inventory;
 
 enum LogAction: string
 {
-    // Existing actions
+    // Existing asctions
     case BATCH_CREATED = 'batch_created';
     case PORTIONS_CREATED = 'portions_created';
     case DEDUCTED_FOR_SALE = 'deducted_for_sale';

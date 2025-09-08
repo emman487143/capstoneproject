@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\Inventory\LogAction;
+use App\Services\LogDetailFormatter;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +13,7 @@ class InventoryLog extends Model
 {
     /** @use HasFactory<\Database\Factories\InventoryLogFactory> */
     use HasFactory;
-      protected $fillable = [
+    protected $fillable = [
         'inventory_batch_id',
         'batch_portion_id',
         'user_id',
@@ -20,7 +22,9 @@ class InventoryLog extends Model
         'details',
     ];
 
-     protected function casts(): array
+    protected $appends = ['formatted_details'];
+
+    protected function casts(): array
     {
         return [
             'action' => LogAction::class,
@@ -28,7 +32,18 @@ class InventoryLog extends Model
         ];
     }
 
-      public function batch(): BelongsTo
+    /**
+     * Get the formatted details for the log entry.
+     * This accessor automatically uses the LogDetailFormatter service.
+     */
+    protected function formattedDetails(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => app(LogDetailFormatter::class)->format($this),
+        );
+    }
+
+    public function batch(): BelongsTo
     {
         return $this->belongsTo(InventoryBatch::class, 'inventory_batch_id');
     }

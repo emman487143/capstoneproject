@@ -6,7 +6,7 @@ enum PortionStatus: string
 {
     // Primary statuses
     case UNUSED = 'unused';     // Available for use
-    case USED = 'used';         // Properly used in production
+    case USED = 'used';         // Properly sused in production
 
     // Specific adjustment reasons
     case SPOILED = 'spoiled';   // Discarded due to spoilage/expiration

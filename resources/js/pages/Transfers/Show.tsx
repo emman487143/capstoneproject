@@ -27,6 +27,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import React from 'react';
 
 interface ShowPageProps {
     transfer: Transfer;
@@ -275,22 +276,41 @@ export default function Show({ transfer, can }: ShowPageProps) {
                                     <TableRow>
                                         <TableHead>Item</TableHead>
                                         <TableHead>Batch #</TableHead>
-                                        <TableHead>Portion Label</TableHead>
-                                        <TableHead className="text-right">Quantity</TableHead>
+                                        <TableHead>Portion/Batch Label</TableHead>
+                                        <TableHead>Quantity</TableHead>
+                                        {transfer.status !== 'pending' && <TableHead>Status</TableHead>}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {transfer.items.map((item) => (
-                                       <TableRow key={item.id}>
-                                            <TableCell>{item.inventory_item.name}</TableCell>
-                                            <TableCell>#{item.inventory_batch.batch_number}</TableCell>
-                                            <TableCell className="font-mono text-xs">
-    {item.inventory_batch_portion?.label || item.inventory_batch.label || `#${item.inventory_batch.batch_number}`}
-</TableCell>
-                                            <TableCell className="text-right">
-                                               {`${item.quantity} ${item.inventory_item.unit}`}
-                                            </TableCell>
-                                        </TableRow>
+                                        <React.Fragment key={item.id}>
+                                            <TableRow>
+                                                <TableCell>{item.inventory_item.name}</TableCell>
+                                                <TableCell>#{item.inventory_batch.batch_number}</TableCell>
+                                                <TableCell className="font-mono text-xs">
+                                                    {item.inventory_batch_portion?.label || item.inventory_batch.label}
+                                                </TableCell>
+                                                <TableCell>{`${item.quantity} ${item.inventory_item.unit}`}</TableCell>
+                                                {transfer.status !== 'pending' && (
+                                                    <TableCell>
+                                                        {item.reception_status === 'received' ? (
+                                                            <Badge variant="success">Received</Badge>
+                                                        ) : item.reception_status === 'rejected' ? (
+                                                            <Badge variant="destructive">Rejected</Badge>
+                                                        ) : (
+                                                            <Badge variant="outline">N/A</Badge>
+                                                        )}
+                                                    </TableCell>
+                                                )}
+                                            </TableRow>
+                                            {item.reception_notes && (
+                                                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                                                    <TableCell colSpan={5} className="py-2 px-5 text-xs">
+                                                        <span className="font-semibold text-muted-foreground">Notes:</span> {item.reception_notes}
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </React.Fragment>
                                     ))}
                                 </TableBody>
                             </Table>
@@ -299,24 +319,41 @@ export default function Show({ transfer, can }: ShowPageProps) {
                         {/* Mobile View */}
                         <div className="md:hidden space-y-4">
                             {transfer.items.map((item) => (
-                                <div key={item.id} className="border rounded-lg p-4">
+                                <div key={item.id} className="border rounded-lg p-4 space-y-3">
                                     <h4 className="font-medium">{item.inventory_item.name}</h4>
-                                    <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
+                                    <div className="grid grid-cols-2 gap-2 text-sm">
                                         <div>
                                             <p className="text-muted-foreground">Batch</p>
                                             <p className="font-medium">#{item.inventory_batch.batch_number}</p>
                                         </div>
                                         <div>
-                                            <p className="text-muted-foreground">Portion</p>
+                                            <p className="text-muted-foreground">Portion/Batch</p>
                                             <p className="font-mono text-xs font-medium">
-                                                {item.inventory_batch_portion?.label || item.inventory_batch.label || `#${item.inventory_batch.batch_number}`}
+                                                {item.inventory_batch_portion?.label || item.inventory_batch.label}
                                             </p>
                                         </div>
                                         <div className="col-span-2">
                                             <p className="text-muted-foreground">Quantity</p>
                                             <p className="font-medium">{`${item.quantity} ${item.inventory_item.unit}`}</p>
                                         </div>
+                                        {transfer.status !== 'pending' && (
+                                            <div className="col-span-2">
+                                                <p className="text-muted-foreground">Status</p>
+                                                {item.reception_status === 'received' ? (
+                                                    <Badge variant="success">Received</Badge>
+                                                ) : item.reception_status === 'rejected' ? (
+                                                    <Badge variant="destructive">Rejected</Badge>
+                                                ) : (
+                                                    <Badge variant="outline">N/A</Badge>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
+                                    {item.reception_notes && (
+                                        <div className="text-xs border-t pt-2">
+                                            <span className="font-semibold text-muted-foreground">Notes:</span> {item.reception_notes}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
