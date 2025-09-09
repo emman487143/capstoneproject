@@ -17,4 +17,16 @@ class DashboardPolicy
     {
         return $user->role === 'owner';
     }
+
+    /**
+     * Determine whether the user can view the dashboard.
+     *
+     * @param  \App\Models\User  $user
+     * @return bool
+     */
+    public function view(User $user): bool
+    {
+        // Only owners and managers can view the dashboard. Staff are implicitly denied.
+        return $user->isOwner() || $user->isManager();
+    }
 }

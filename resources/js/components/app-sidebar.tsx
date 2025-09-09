@@ -25,26 +25,32 @@ import {
     AccordionTrigger,
 } from '@/components/ui/accordion';
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
-        icon: LayoutDashboard,
-    },
-    {
-        title: 'Branches',
-        href: '/branches',
-        icon: Building2,
-    },
-     {
-        title: 'Employees',
-        href: '/employees',
-        icon: Users,
-    },
-];
-
 export function AppSidebar() {
     const { auth } = usePage<PageProps>().props;
+
+    // Define mainNavItems dynamically to enforce role-based access
+    const mainNavItems: NavItem[] = [
+        {
+            title: 'Dashboard',
+            href: route('dashboard'),
+            icon: LayoutDashboard,
+        },
+        // Branches are only visible to the owner
+        ...(auth.user.role === 'owner'
+            ? [
+                  {
+                      title: 'Branches',
+                      href: route('branches.index'),
+                      icon: Building2,
+                  },
+              ]
+            : []),
+        {
+            title: 'Employees',
+            href: route('employees.index'),
+            icon: Users,
+        },
+    ];
 
     const inventoryNavItems: NavItem[] = [
         {
@@ -110,14 +116,16 @@ const salesNavItems: NavItem[] = [
                 <AppLogo />
             </SidebarHeader>
             <SidebarContent hideScrollbar={true}>
-                {auth.user.is_admin && (<SidebarMenu>
-
-                    <NavMain items={mainNavItems} />
-                </SidebarMenu>)}
+                {/* Corrected condition to ensure it only shows for owner/manager */}
+                {(auth.user.role === 'owner' || auth.user.role === 'manager') && (
+                    <SidebarMenu>
+                        <NavMain items={mainNavItems} />
+                    </SidebarMenu>
+                )}
 
                 {/* Add the inventory menu here */}
                 <SidebarMenu>
-                    <SidebarMenuButton className='pointer-events-none mt-4 h-auto justify-start rounded-lg px-3 py-2 text-sm'>
+                    <SidebarMenuButton className="pointer-events-none mt-4 h-auto justify-start rounded-lg px-3 py-2 text-sm">
                         Inventory
                     </SidebarMenuButton>
                     <NavMain items={inventoryNavItems} />

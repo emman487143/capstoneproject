@@ -93,22 +93,31 @@ export default function Index({ employees, filters, archivedEmployeesCount }: In
             <Head title="Employees" />
             <div className="p-4 sm:p-6 lg:p-8 space-y-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <Heading title="Employees" description="Manage all employees across all branches." />
-                    {auth.user.is_admin&&(<div className="flex items-center gap-2 self-end sm:self-auto">
-                        <Button variant="outline" asChild disabled={archivedEmployeesCount === 0}>
-                            <Link href={route('employees.archived')}>
-                                <Archive className="mr-2 h-4 w-4" />
-                                View Archived
-                            </Link>
-                        </Button>
-                        <Button asChild>
-                            <Link href={route('employees.create')}>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Add Employee
-                            </Link>
-                        </Button>
-                    </div>)}
-
+                    <Heading
+                        title="Employees"
+                        description={
+                            auth.user.role === 'owner'
+                                ? 'Manage all employees across all branches.'
+                                : "Manage employees for your branch."
+                        }
+                    />
+                    {/* FIX: Allow managers to see these buttons as well */}
+                    {(auth.user.role === 'owner' || auth.user.role === 'manager') && (
+                        <div className="flex items-center gap-2 self-end sm:self-auto">
+                            <Button variant="outline" asChild disabled={archivedEmployeesCount === 0}>
+                                <Link href={route('employees.archived')}>
+                                    <Archive className="mr-2 h-4 w-4" />
+                                    View Archived
+                                </Link>
+                            </Button>
+                            <Button asChild>
+                                <Link href={route('employees.create')}>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Add Employee
+                                </Link>
+                            </Button>
+                        </div>
+                    )}
                 </div>
 
                 <div className="relative">

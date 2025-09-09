@@ -28,7 +28,15 @@ class EmployeeController extends Controller
     {
         $this->authorize('viewAny', Employee::class);
 
+        /** @var User $user */
+        $user = $request->user();
+
         $query = Employee::with(['user', 'branch'])->orderBy('first_name')->orderBy('last_name');
+
+        // If the user is a manager, scope the query to their branch.
+        if ($user->isManager()) {
+            $query->where('branch_id', $user->employee?->branch_id);
+        }
 
         $search = $request->input('search');
         if ($search) {
@@ -41,9 +49,17 @@ class EmployeeController extends Controller
             });
         }
 
+        // Calculate archived count, scoped for manager
+        $archivedQuery = Employee::onlyTrashed();
+        if ($user->isManager()) {
+            $archivedQuery->where('branch_id', $user->employee?->branch_id);
+        }
+        $archivedEmployeesCount = $archivedQuery->count();
+
         return Inertia::render('Employees/Index', [
             'employees' => $query->paginate(10)->withQueryString(),
             'filters' => ['search' => $search],
+            'archivedEmployeesCount' => $archivedEmployeesCount,
         ]);
     }
 
@@ -51,8 +67,20 @@ class EmployeeController extends Controller
     {
         $this->authorize('create', Employee::class);
 
+        /** @var User $user */
+        $user = auth()->user();
+        $branches = collect();
+
+        if ($user->isOwner()) {
+            // Owners can select from any branch.
+            $branches = Branch::orderBy('name')->get(['id', 'name']);
+        } elseif ($user->isManager() && $user->employee?->branch) {
+            // Managers are locked to their own branch.
+            $branches = collect([$user->employee->branch]);
+        }
+
         return Inertia::render('Employees/Create', [
-            'branches' => Branch::orderBy('name')->get(['id', 'name']),
+            'branches' => $branches,
         ]);
     }
 
@@ -165,7 +193,15 @@ class EmployeeController extends Controller
     {
         $this->authorize('viewAny', Employee::class);
 
+        /** @var User $user */
+        $user = $request->user();
+
         $query = Employee::onlyTrashed()->with(['user', 'branch']);
+
+        // If the user is a manager, scope the query to their branch.
+        if ($user->isManager()) {
+            $query->where('branch_id', $user->employee?->branch_id);
+        }
 
         $search = $request->input('search');
         if ($search) {

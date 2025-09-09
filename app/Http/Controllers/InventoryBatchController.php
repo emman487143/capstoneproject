@@ -341,7 +341,7 @@ public function correctCount(CorrectBatchCountRequest $request, InventoryBatch $
 
 public function restoreQuantity(Request $request, InventoryBatch $batch)
 {
-    $this->authorize('update', $batch);
+    $this->authorize('restoreQuantity', $batch);
 
     // Add debugging
     Log::debug('Restore quantity request', [

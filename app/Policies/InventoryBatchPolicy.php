@@ -94,28 +94,32 @@ class InventoryBatchPolicy
     {
         return false;
     }
+
     /**
- * Determine whether the user can correct the initial count of a batch.
- */
-public function correctCount(User $user, InventoryBatch $batch): bool
-{
-    // Only admins or managers can correct batch counts
-    if (!$user->is_admin && !$user->employee?->hasRole('manager')) {
-        return false;
+     * Determine whether the user can correct the initial count of a batch.
+     */
+    public function correctCount(User $user, InventoryBatch $batch): bool
+    {
+        // A manager can perform this action if they are in the same branch.
+        // Owners are handled by the `before` method.
+        return $user->isManager() && $user->employee?->branch_id === $batch->branch_id;
     }
 
-    // The user must be working with their own branch
-    return $user->is_admin || $user->employee?->branch_id === $batch->branch_id;
-}
-
-public function restorePortions(User $user, InventoryBatch $batch): bool
-{
-    // Only managers or admins can restore portions
-    if (!$user->is_admin && !$user->employee?->hasRole('manager')) {
-        return false;
+    /**
+     * Determine whether the user can restore portions for a batch.
+     */
+    public function restorePortions(User $user, InventoryBatch $batch): bool
+    {
+        // A manager can perform this action if they are in the same branch.
+        return $user->isManager() && $user->employee?->branch_id === $batch->branch_id;
     }
 
-    // The user must be working with their own branch
-    return $user->is_admin || $user->employee?->branch_id === $batch->branch_id;
-}
+    /**
+     * Determine whether the user can restore quantity for a batch.
+     */
+    public function restoreQuantity(User $user, InventoryBatch $batch): bool
+    {
+        // A manager can perform this action if they are in the same branch.
+        return $user->isManager() && $user->employee?->branch_id === $batch->branch_id;
+    }
 }

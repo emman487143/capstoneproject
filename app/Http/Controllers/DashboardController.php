@@ -41,18 +41,13 @@ class DashboardController extends Controller
      */
     public function __invoke(Request $request): Response
     {
-
-
+        $this->authorize('view', Dashboard::class);
 
         /** @var User $user */
         $user = Auth::user();
         $branches = collect();
         $currentBranch = null;
         $selectedBranchId = null;
-
-        if($user->role === 'staff') {
-           dd("Access denied. Staff members do not have access to the dashboard.");
-        }
 
         // Only owners can see all branches, managers can only see their assigned branch
         if ($user->role === 'owner') {
@@ -68,8 +63,10 @@ class DashboardController extends Controller
             }
         } else {
             // Manager role - restricted to their branch
-            if ($user->branch) {
-                $currentBranch = $user->branch;
+            // FIX: Correctly access the branch via the employee relationship.
+            $employee = $user->employee;
+            if ($employee && $employee->branch) {
+                $currentBranch = $employee->branch;
                 $selectedBranchId = $currentBranch->id;
                 $branches = collect([$currentBranch]);
             }

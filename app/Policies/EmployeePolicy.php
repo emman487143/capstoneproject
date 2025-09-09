@@ -31,8 +31,8 @@ class EmployeePolicy
      */
     public function create(User $user): bool
     {
-        // Only owners can create employees
-        return $user->isOwner();
+        // Owners and managers can create employees.
+        return $user->isOwner() || $user->isManager();
     }
 
     /**
@@ -40,7 +40,12 @@ class EmployeePolicy
      */
     public function update(User $user, Employee $employee): bool
     {
-        // Only owners can update employees
+        // A manager can update an employee if they are in the same branch.
+        if ($user->isManager()) {
+            return $user->employee?->branch_id === $employee->branch_id;
+        }
+
+        // Owners can always update.
         return $user->isOwner();
     }
 
@@ -49,7 +54,10 @@ class EmployeePolicy
      */
     public function delete(User $user, Employee $employee): bool
     {
-        // Only owners can archive employees
+        // A manager can archive an employee if they are in the same branch.
+        if ($user->isManager()) {
+            return $user->employee?->branch_id === $employee->branch_id;
+        }
         return $user->isOwner();
     }
 
@@ -58,7 +66,10 @@ class EmployeePolicy
      */
     public function restore(User $user, Employee $employee): bool
     {
-        // Only owners can restore archived employees
+        // A manager can restore an employee if they were in the same branch.
+        if ($user->isManager()) {
+            return $user->employee?->branch_id === $employee->branch_id;
+        }
         return $user->isOwner();
     }
 }

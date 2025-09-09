@@ -15,13 +15,13 @@ import { CorrectCountModal } from './Partials/CorrectCountModal';
 import { RestorePortionModal } from './Partials/RestorePortionModal';
 import RestoreQuantityModal from './Partials/RestoreQuantityModal';
 import { formatCurrency } from '@/lib/utils';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 interface ShowPageProps extends SharedData {
     batch: InventoryBatch;
 }
 
-export default function Show({ batch }: ShowPageProps) {
+export default function Show({ batch, auth }: ShowPageProps) {
     const [isCorrectCountModalOpen, setIsCorrectCountModalOpen] = useState(false);
     const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
     const [isRestoreQuantityModalOpen, setIsRestoreQuantityModalOpen] = useState(false);
@@ -112,65 +112,87 @@ export default function Show({ batch }: ShowPageProps) {
                         description={`Viewing batch #${batch.batch_number} of ${batch.inventory_item.name}.`}
                     />
                     <div className="flex items-center gap-2">
-                        {/* Consolidated dropdown with all actions */}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button>
-                                    Manage Batch
-                                    <ChevronDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-56">
-                                {/* Primary Action placed first with visual distinction */}
-                                <DropdownMenuItem asChild >
-                                    <Link
-                                        href={route('inventory.adjustments.create', {
-                                            item_id: batch.inventory_item.id,
-                                            batch_id: batch.id,
-                                            branch_id: batch.branch_id,
-                                        })}
-                                    >
-                                        <MinusCircle className="mr-2 h-4 w-4" />
-                                        Remove Stock
-                                    </Link>
-                                </DropdownMenuItem>
+                        {/* Staff view: Simple button for the primary action */}
+                        {auth.user.role === 'staff' && (
+                            <Button asChild>
+                                <Link
+                                    href={route('inventory.adjustments.create', {
+                                        item_id: batch.inventory_item.id,
+                                        batch_id: batch.id,
+                                        branch_id: batch.branch_id,
+                                    })}
+                                >
+                                    <MinusCircle className="mr-2 h-4 w-4" />
+                                    Remove Stock
+                                </Link>
+                            </Button>
+                        )}
 
-                                <DropdownMenuItem asChild>
-                                    <Link href={route('inventory.batches.edit', batch.id)}>
-                                        <Edit className="mr-2 h-4 w-4" />
-                                        Edit
-                                    </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => setTimeout(() => setIsCorrectCountModalOpen(true), 0)}>
-                                    <Wrench className="mr-2 h-4 w-4" />
-                                    Correct Count
-                                </DropdownMenuItem>
+                        {/* Admin/Manager view: Full dropdown with all actions */}
+                        {(auth.user.role === 'owner' || auth.user.role === 'manager') && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button>
+                                        Manage Batch
+                                        <ChevronDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-56">
+                                    {/* Primary Action placed first */}
+                                    <DropdownMenuItem asChild>
+                                        <Link
+                                            href={route('inventory.adjustments.create', {
+                                                item_id: batch.inventory_item.id,
+                                                batch_id: batch.id,
+                                                branch_id: batch.branch_id,
+                                            })}
+                                        >
+                                            <MinusCircle className="mr-2 h-4 w-4" />
+                                            Remove Stock
+                                        </Link>
+                                    </DropdownMenuItem>
 
-                                {batch.inventory_item.tracking_type === 'by_portion' ? (
-                                    <>
+                                    {/* Administrative actions */}
+                                    <DropdownMenuItem asChild>
+                                        <Link href={route('inventory.batches.edit', batch.id)}>
+                                            <Edit className="mr-2 h-4 w-4" />
+                                            Edit
+                                        </Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => setTimeout(() => setIsCorrectCountModalOpen(true), 0)}>
+                                        <Wrench className="mr-2 h-4 w-4" />
+                                        Correct Count
+                                    </DropdownMenuItem>
+
+                                    {batch.inventory_item.tracking_type === 'by_portion' ? (
                                         <DropdownMenuItem onSelect={() => setTimeout(() => setIsRestoreModalOpen(true), 0)}>
                                             <RefreshCw className="mr-2 h-4 w-4" />
                                             Restore Portions
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={handlePrintLabels}>
-                                            <Printer className="mr-2 h-4 w-4" />
-                                            Print Portion Labels
-                                        </DropdownMenuItem>
-                                    </>
-                                ) : (
-                                    <>
+                                    ) : (
                                         <DropdownMenuItem onSelect={() => setTimeout(() => setIsRestoreQuantityModalOpen(true), 0)}>
                                             <RefreshCw className="mr-2 h-4 w-4" />
                                             Restore Quantity
                                         </DropdownMenuItem>
+                                    )}
+
+                                    <DropdownMenuSeparator />
+
+                                    {/* Print actions */}
+                                    {batch.inventory_item.tracking_type === 'by_portion' ? (
+                                        <DropdownMenuItem onClick={handlePrintLabels}>
+                                            <Printer className="mr-2 h-4 w-4" />
+                                            Print Portion Labels
+                                        </DropdownMenuItem>
+                                    ) : (
                                         <DropdownMenuItem onClick={handlePrintLabels}>
                                             <Printer className="mr-2 h-4 w-4" />
                                             Print Batch Label
                                         </DropdownMenuItem>
-                                    </>
-                                )}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
                     </div>
                 </div>
                 <Card>
