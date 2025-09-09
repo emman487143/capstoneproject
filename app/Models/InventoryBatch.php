@@ -105,6 +105,10 @@ class InventoryBatch extends Model
                 LogAction::ADJUSTMENT_SPOILAGE->value,
                 LogAction::ADJUSTMENT_WASTE->value,
                 LogAction::ADJUSTMENT_THEFT->value,
+                LogAction::ADJUSTMENT_DAMAGED->value,
+                LogAction::ADJUSTMENT_MISSING->value,
+                LogAction::ADJUSTMENT_EXPIRED->value,
+                LogAction::ADJUSTMENT_STAFF_MEAL->value,
                 LogAction::ADJUSTMENT_OTHER->value,
             ])
             ->where(function($query) {

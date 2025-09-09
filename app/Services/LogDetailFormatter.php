@@ -62,9 +62,15 @@ class LogDetailFormatter
             $base['quantityInfo'] = '↓ -1 portion';
             // REMOVED: The portion label is already shown in the 'Item' column.
         } else {
-            $qty = $details['quantity_change'] ?? 0;
-            $base['quantityInfo'] = sprintf('↓ -%s %s', number_format(abs((float)$qty), 2), $itemUnit);
-            $this->addMetadata($base, 'Before', isset($details['old_quantity']) ? "{$details['old_quantity']} {$itemUnit}" : null);
+            // FIX: Use 'quantity_adjusted' which is the correct key from the service.
+            $qty = $details['quantity_adjusted'] ?? 0;
+            $direction = $details['adjustment_direction'] ?? 'decrease';
+            $sign = $direction === 'increase' ? '↑ +' : '↓ -';
+
+            $base['quantityInfo'] = sprintf('%s%s %s', $sign, number_format(abs((float)$qty), 2), $itemUnit);
+
+            // FIX: Use 'original_quantity' which is the correct key for the 'Before' state.
+            $this->addMetadata($base, 'Before', isset($details['original_quantity']) ? "{$details['original_quantity']} {$itemUnit}" : null);
             $this->addMetadata($base, 'After', isset($details['new_quantity']) ? "{$details['new_quantity']} {$itemUnit}" : null);
         }
 
@@ -157,6 +163,8 @@ class LogDetailFormatter
             $base['quantityInfo'] = sprintf('↑ +%s %s', number_format((float)$qty, 2), $itemUnit);
             $base['description'] = 'Quantity restored to batch';
             // REMOVED: The batch label is already shown in the 'Item' column.
+
+            // FIX: Use the correct keys for before/after quantities.
             $this->addMetadata($base, 'Before', isset($details['before_quantity']) ? "{$details['before_quantity']} {$itemUnit}" : null);
             $this->addMetadata($base, 'After', isset($details['after_quantity']) ? "{$details['after_quantity']} {$itemUnit}" : null);
         }

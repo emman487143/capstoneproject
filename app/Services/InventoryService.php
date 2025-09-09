@@ -276,12 +276,21 @@ public function recordQuantityAdjustment(array $data, User $user): void
             ->lockForUpdate()
             ->findOrFail($data['inventory_batch_id']);
 
-        $quantityToAdjust = (float) $data['quantity'];
         $adjustmentType = AdjustmentType::from($data['type']);
         $isPositive = $adjustmentType->isPositive();
 
+        // FIX: For 'expired' adjustments, the quantity is always the total remaining quantity.
+        if ($adjustmentType === AdjustmentType::EXPIRED) {
+            $quantityToAdjust = $batch->remaining_quantity;
+        } else {
+            $quantityToAdjust = (float) ($data['quantity'] ?? 0);
+        }
+
         if ($quantityToAdjust <= 0) {
-            throw new InvalidArgumentException('Adjustment quantity must be positive.');
+            // For expired, it's okay if remaining is 0. For others, it's an error.
+            if ($adjustmentType !== AdjustmentType::EXPIRED) {
+                throw new InvalidArgumentException('Adjustment quantity must be positive.');
+            }
         }
 
         // For negative adjustments, ensure we have enough quantity
@@ -629,9 +638,14 @@ public function restoreQuantity(InventoryBatch $batch, array $adjustments, strin
     $validLogs = InventoryLog::whereIn('id', $adjustmentIds)
         ->where('inventory_batch_id', $batch->id)
         ->whereIn('action', [
+            // FIX: Add all valid negative adjustment types to match the model.
             LogAction::ADJUSTMENT_SPOILAGE->value,
             LogAction::ADJUSTMENT_WASTE->value,
             LogAction::ADJUSTMENT_THEFT->value,
+            LogAction::ADJUSTMENT_DAMAGED->value,
+            LogAction::ADJUSTMENT_MISSING->value,
+            LogAction::ADJUSTMENT_EXPIRED->value,
+            LogAction::ADJUSTMENT_STAFF_MEAL->value,
             LogAction::ADJUSTMENT_OTHER->value,
         ])
         ->get()
@@ -645,6 +659,7 @@ public function restoreQuantity(InventoryBatch $batch, array $adjustments, strin
     // Process the restoration within a transaction
     return DB::transaction(function () use ($batch, $adjustments, $reason, $user, $validLogs) {
         $totalQuantity = 0;
+        $beforeQuantity = $batch->remaining_quantity; // Capture before state
 
         // Calculate the total quantity to restore and validate each adjustment
         foreach ($adjustments as $logId => $quantityToRestore) {
@@ -685,6 +700,7 @@ public function restoreQuantity(InventoryBatch $batch, array $adjustments, strin
 
         // Update the batch's remaining quantity
         $batch->increment('remaining_quantity', $totalQuantity);
+        $afterQuantity = $batch->remaining_quantity; // Capture after state
 
         // Log the restoration with references to the original adjustment logs
         InventoryLog::create([
@@ -695,6 +711,8 @@ public function restoreQuantity(InventoryBatch $batch, array $adjustments, strin
                 'quantity_restored' => $totalQuantity,
                 'reason' => $reason,
                 'original_adjustments' => $adjustments,
+                'before_quantity' => $beforeQuantity,
+                'after_quantity' => $afterQuantity,
             ],
         ]);
 
